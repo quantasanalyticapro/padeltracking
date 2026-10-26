@@ -30,7 +30,7 @@ nav button{flex:1;border-radius:0;background:none;padding:16px 4px}nav .on{color
 </style></head><body><main id="app"></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
-const URL_='https://ypptwklnylrnnoqxcupe.supabase.co', KEY='';  // KEY: clave publicable (sb_publishable_...)
+const URL_='https://ypptwklnylrnnoqxcupe.supabase.co', KEY='sb_publishable_vJWdwmoVfWYCgD2lMA2hpQ_EgNjSBvG';  // KEY: clave publicable (sb_publishable_...)
 let K=KEY||localStorage.getItem('sbk')||'';
 if(!K){K=(prompt('Pegá la clave publicable de Supabase (Settings > API Keys)')||'').trim();localStorage.setItem('sbk',K)}
 const sb=supabase.createClient(URL_,K),$=s=>document.querySelector(s),A=$('#app');
