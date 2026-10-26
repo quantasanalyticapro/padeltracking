@@ -67,7 +67,11 @@ const readFmt=()=>({sets:+$('#fs').value,juegos:+$('#fj').value,tb:+$('#ft').val
 const pl=id=>P[id]?[P[id].jugador_1_id,P[id].jugador_2_id].filter(Boolean):[];
 const nm=id=>{const j=J[id];if(!j)return '?';const d=Object.values(J).some(o=>o.id!=id&&o.nombre.trim().toLowerCase()==j.nombre.trim().toLowerCase());return d?`${j.nombre} (${(j.email||'').split('@')[0]})`:j.nombre};
 const byEmail=e=>Object.values(J).find(j=>(j.email||'').toLowerCase()==e.trim().toLowerCase());
-const pn=id=>P[id]?pl(id).map(x=>nm(x)).join(' / ')||'?':'Por definir';
+const ap=id=>{const j=J[id];if(!j)return '?';const w=j.nombre.trim().split(/\s+/),a=w[w.length-1];
+ const d=Object.values(J).some(o=>o.id!=id&&o.nombre.trim().split(/\s+/).pop().toLowerCase()==a.toLowerCase());
+ return d?(w.length>1?w[0][0].toUpperCase()+'. '+a:nm(id)):a};
+const pnf=id=>P[id]?pl(id).map(x=>nm(x)).join(' / ')||'?':'Por definir';
+const pn=id=>P[id]?pl(id).map(ap).join(' / ')||'?':'Por definir';
 const cfgOf=m=>({...DEF,...(T[m.torneo_id]?.config||{}),...(m.config||{})});
 const isPl=m=>[m.pareja_a_id,m.pareja_b_id].some(i=>pl(i).includes(me.id));
 const isOrg=m=>T[m.torneo_id]?.organizador_id==me.id;
@@ -106,15 +110,15 @@ function vTorneos(){
  if(sel){const t=T[sel],ps=Object.values(P).filter(p=>p.torneo_id==sel),ms=Object.values(M).filter(m=>m.torneo_id==sel),org=t.organizador_id==me.id;
   const ya=ps.some(p=>pl(p.id).includes(me.id));
   return `<button data-a=back>‹ Torneos</button><h2>${esc(t.nombre)}</h2><div class=mut>${esc(t.categoria)} · ${t.formato.replace('_',' ')} · ${t.estado.replace('_',' ')}</div><div class=mut>${t.fecha_inicio?'📅 '+fdate(t.fecha_inicio)+' · ':''}${fmtTxt(cfgOf({torneo_id:t.id}))}</div>${org?'<button data-a=edT>⚙ Fecha y formato</button>':''}
-  <div class=c><h3>Parejas (${ps.length})</h3>${ps.map(p=>`<div>• ${esc(pn(p.id))}${p.confirmada?'':' ⏳ <span class=mut>(compañero sin confirmar)</span>'} <span class=mut>Elo ${p.elo_promedio_pareja}</span></div>`).join('')||'<span class=mut>Sin inscriptos</span>'}
+  <div class=c><h3>Parejas (${ps.length})</h3>${ps.map(p=>`<div>• ${esc(pnf(p.id))}${p.confirmada?'':' ⏳ <span class=mut>(compañero sin confirmar)</span>'} <span class=mut>Elo ${p.elo_promedio_pareja}</span></div>`).join('')||'<span class=mut>Sin inscriptos</span>'}
   ${t.estado=='inscripciones_abiertas'&&!ya?`<input id=cp type=email placeholder="Email de tu compañero (vacío = sin compañero)"><button class="p w" data-a=join>Inscribirme</button>`:''}
   ${org&&t.estado=='inscripciones_abiertas'?`<button class="p w" data-a=gen>⚡ Cerrar inscripciones y generar fixture</button>`:''}</div>
   ${ms.map(mCard).join('')}`}
  return `<h2>Torneos</h2>${Object.values(T).reverse().map(t=>`<div class=c data-a=open data-id=${t.id}><b>${esc(t.nombre)}</b> <span class=tag>${t.estado.replace('_',' ')}</span><div class=mut>${esc(t.categoria)} · ${t.formato.replace('_',' ')}${t.fecha_inicio?' · 📅 '+fdate(t.fecha_inicio):''}</div></div>`).join('')}
- <div class=c><h3>Nuevo torneo</h3><input id=tn placeholder="Nombre"><input id=tc placeholder="Categoría (ej. 5ta)">
+ ${me.es_organizador?`<div class=c><h3>Nuevo torneo</h3><input id=tn placeholder="Nombre"><input id=tc placeholder="Categoría (ej. 5ta)">
  <select id=tf><option value=grupos>Fase de grupos</option><option value=eliminacion_directa>Eliminación directa</option></select>
  <label class=mut>Fecha de inicio</label><input id=tdt type=date>${fmtFields(DEF)}
- <button class="p w" data-a=newT>Crear torneo</button></div>`}
+ <button class="p w" data-a=newT>Crear torneo</button></div>`:'<p class=mut>Solo los organizadores habilitados pueden crear torneos.</p>'}`}
 
 function vRank(){return `<h2>Ranking Elo</h2><div class=c>${Object.values(J).sort((a,b)=>b.elo_actual-a.elo_actual).map((j,i)=>
  `<div class="row sp" style="padding:6px 0"><span>${i+1}. ${esc(nm(j.id))}</span><span><b>${j.elo_actual}</b> <span class=mut>${j.partidos_ganados}/${j.partidos_jugados}</span></span></div>`).join('')}</div>`}
