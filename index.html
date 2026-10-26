@@ -4,29 +4,32 @@
 <meta name="theme-color" content="#0f172a"><title>Pádel Tracking</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;font:16px system-ui,sans-serif;background:#0f172a;color:#e2e8f0;padding-bottom:70px}
-main{max-width:560px;margin:auto;padding:12px}
-h2,h3{margin:.4em 0}.mut{color:#94a3b8;font-size:.85em}
-input,select{width:100%;padding:12px;margin:4px 0;border-radius:10px;border:1px solid #334155;background:#1e293b;color:#fff;font-size:16px}
-button{padding:12px 14px;border:0;border-radius:10px;background:#334155;color:#fff;font-size:15px;font-weight:600}
-button.p{background:#16a34a}button.d{background:#b91c1c}button.w{width:100%;margin:4px 0}
-.c{background:#1e293b;border-radius:14px;padding:12px;margin:10px 0}
+body{margin:0;font:16px system-ui,-apple-system,sans-serif;background:#edf3f4;color:#19313a;padding-bottom:78px;min-height:100vh}
+main{max-width:720px;margin:auto;padding:18px 16px}
+h2,h3{margin:.45em 0;color:#19313a}h2{font-size:1.55rem;letter-spacing:-.025em}h3{font-size:1.1rem}.mut{color:#657b81;font-size:.85em}
+input,select{width:100%;padding:12px;margin:4px 0;border-radius:11px;border:1px solid #ccdadd;background:#fff;color:#19313a;font-size:16px;box-shadow:0 1px 2px #14323a0b}
+input:focus,select:focus{outline:2px solid #75aab0;outline-offset:1px}
+button{padding:12px 14px;border:0;border-radius:11px;background:#dcebee;color:#1c5965;font-size:15px;font-weight:650;transition:filter .15s,transform .15s}
+button:hover{filter:brightness(.96)}button:active{transform:translateY(1px)}
+button.p{background:#1c5965;color:#fff}button.d{background:#bd5e50;color:#fff}button.w{width:100%;margin:4px 0}
+.c{background:#fff;border:1px solid #dce7e8;border-radius:17px;padding:16px;margin:12px 0;box-shadow:0 5px 18px #1838400a}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sp{justify-content:space-between}
-nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#020617;padding-bottom:env(safe-area-inset-bottom)}
-nav button{flex:1;border-radius:0;background:none;padding:16px 4px}nav .on{color:#4ade80}
-.tag{font-size:.75em;padding:2px 8px;border-radius:99px;background:#334155}
-.big{font-size:56px;font-weight:800;text-align:center;line-height:1}
-.sc{text-align:center}.sets{display:flex;gap:6px;justify-content:center;margin:6px 0}
-.teams{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.team{border-radius:14px;padding:8px}.TA{background:#14532d}.TB{background:#1e3a8a}
-.team button{width:100%;height:84px;margin:5px 0;font-size:18px;background:#0008}
+nav{position:fixed;z-index:5;bottom:0;left:0;right:0;display:flex;background:#183a43;padding:4px 10px calc(4px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px #142d3420}
+nav button{flex:1;border-radius:12px;background:none;color:#d9e5e6;padding:14px 4px}nav .on{color:#ff9a80;background:#ffffff14}
+.tag{font-size:.75em;padding:4px 9px;border-radius:99px;background:#e2edef;color:#1c5965;font-weight:650}
+.big{font-size:56px;font-weight:800;text-align:center;line-height:1;color:#1c5965;font-variant-numeric:tabular-nums}
+.sc{text-align:center;padding:12px 0}.sets{display:flex;gap:6px;justify-content:center;margin:8px 0}
+.teams{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.team{border-radius:16px;padding:10px;background:#e5eff0;color:#19313a}.TA{background:#dfecee}.TB{background:#e9e8f1}
+.team button{width:100%;min-height:66px;margin:5px 0;font-size:16px;background:#fff;color:#1c5965;border:1px solid #d6e2e4}
 .team h3{font-size:15px;text-align:center;min-height:2.4em}
-.bar{position:fixed;bottom:0;left:0;right:0;background:#020617;padding:10px 12px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px}
+.bar{position:fixed;z-index:6;bottom:0;left:0;right:0;background:#fff;padding:10px 12px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;border-top:1px solid #dce7e8}
 .bar button{flex:1;height:52px}
-.sheet{position:fixed;inset:0;background:#000a;display:flex;align-items:flex-end}
-.sheet>div{width:100%;background:#1e293b;padding:16px 16px calc(16px + env(safe-area-inset-bottom));border-radius:20px 20px 0 0}
-.sheet button{width:100%;height:76px;margin:6px 0;font-size:20px}
-.ban{background:#854d0e;border-radius:12px;padding:12px;margin:10px 0;text-align:center}
+.sheet{position:fixed;z-index:10;inset:0;background:#132a30a8;display:flex;align-items:flex-end;backdrop-filter:blur(3px)}
+.sheet>div{width:100%;background:#fff;color:#19313a;padding:18px 16px calc(18px + env(safe-area-inset-bottom));border-radius:22px 22px 0 0;box-shadow:0 -8px 30px #102a3025}
+.sheet button{width:100%;min-height:60px;margin:6px 0;font-size:18px}
+.ban{background:#fff0e9;border:1px solid #f2d1c4;color:#794c43;border-radius:14px;padding:14px;margin:12px 0;text-align:center}
+@media(max-width:420px){main{padding:14px 12px}.teams{gap:8px}.team{padding:7px}.team button{font-size:14px;padding:10px 6px}.big{font-size:48px}nav button{font-size:13px}}
 </style></head><body><main id="app"></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
@@ -89,7 +92,7 @@ function vEd(){const T_=ed.k=='T',o=T_?T[ed.id]:M[ed.id],c=cfgOf(T_?{torneo_id:e
  <button class="p w" data-a=saveEd>Guardar</button>${!T_&&o.config?'<button class=w data-a=resetEd>Usar el formato del torneo</button>':''}<button class=w data-a=closeEd>Cancelar</button></div></div>`}
 function vLogin(){return `<h2>🎾 Pádel Tracking</h2><div class=c>
 <input id=em type=email placeholder="Email"><input id=pw type=password placeholder="Contraseña (6+ caracteres)">
-<input id=nm placeholder="Tu nombre (solo para crear cuenta)">
+<input id=nm placeholder="Nombre y Apellido">
 <button class="p w" data-a=login>Entrar</button><button class=w data-a=signup>Crear cuenta</button>
 <p class=mut>${esc(msg)}</p></div>`}
 
