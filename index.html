@@ -28,6 +28,7 @@ nav button{flex:1;border-radius:12px;background:none;color:#d9e5e6;padding:14px 
 .sheet{position:fixed;z-index:10;inset:0;background:#132a30a8;display:flex;align-items:flex-end;backdrop-filter:blur(3px)}
 .sheet>div{width:100%;background:#fff;color:#19313a;padding:18px 16px calc(18px + env(safe-area-inset-bottom));border-radius:22px 22px 0 0;box-shadow:0 -8px 30px #102a3025}
 .sheet button{width:100%;min-height:60px;margin:6px 0;font-size:18px}
+.pw-wrap{position:relative}.pw-wrap input{padding-right:54px}.pw-toggle{position:absolute;right:7px;top:9px;width:40px;height:38px;padding:0;background:transparent;color:#1c5965;border-radius:8px;display:grid;place-items:center}.pw-toggle svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.pw-toggle .eye-slash{display:none}.pw-toggle.is-visible .eye-slash{display:block}
 .ban{background:#fff0e9;border:1px solid #f2d1c4;color:#794c43;border-radius:14px;padding:14px;margin:12px 0;text-align:center}
 @media(max-width:420px){main{padding:14px 12px}.teams{gap:8px}.team{padding:7px}.team button{font-size:14px;padding:10px 6px}.big{font-size:48px}nav button{font-size:13px}}
 </style></head><body><main id="app"></main>
@@ -91,7 +92,7 @@ function vEd(){const T_=ed.k=='T',o=T_?T[ed.id]:M[ed.id],c=cfgOf(T_?{torneo_id:e
  return `<div class=sheet><div style="max-height:92vh;overflow:auto"><h3>${T_?'Fecha y formato del torneo':'Formato de este partido'}</h3>${T_?`<label class=mut>Fecha de inicio</label><input id=fdt type=date value="${o.fecha_inicio||''}">`:''}${fmtFields(c)}
  <button class="p w" data-a=saveEd>Guardar</button>${!T_&&o.config?'<button class=w data-a=resetEd>Usar el formato del torneo</button>':''}<button class=w data-a=closeEd>Cancelar</button></div></div>`}
 function vLogin(){return `<h2>🎾 Pádel Tracking</h2><div class=c>
-<input id=em type=email placeholder="Email"><input id=pw type=password placeholder="Contraseña (6+ caracteres)">
+<input id=em type=email placeholder="Email"><div class=pw-wrap><input id=pw type=password placeholder="Contraseña (6+ caracteres)"><button type=button class=pw-toggle id=togglePw aria-label="Mostrar contraseña" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/><path class=eye-slash d="m4 4 16 16"/></svg></button></div>
 <input id=nm placeholder="Nombre y Apellido (solo para crear la cuenta)">
 <button class="p w" data-a=login>Entrar</button><button class=w data-a=signup>Crear cuenta</button>
 <p class=mut>${esc(msg)}</p></div>`}
@@ -168,6 +169,8 @@ function fixture(t){
   R.forEach((rd,ri)=>{if(ri<R.length-1)rd.forEach((r,i)=>{r.siguiente_partido_id=R[ri+1][i>>1].id;r.siguiente_slot=i%2?'B':'A'})});
   rows.push(...R.flat())}
  return rows}
+
+document.addEventListener('click',e=>{const b=e.target.closest('#togglePw');if(!b)return;const i=$('#pw'),visible=i.type=='password';i.type=visible?'text':'password';b.classList.toggle('is-visible',visible);b.setAttribute('aria-pressed',String(visible));b.setAttribute('aria-label',visible?'Ocultar contraseña':'Mostrar contraseña');i.focus()});
 
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]');if(!b||b.disabled)return;
  if(e.target.closest('.sheet>div')&&b.dataset.a=='cancel')return;
