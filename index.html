@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0f172a"><title>Pádel Tracking</title>
+<meta name="theme-color" content="#edf3f4"><title>Pádel Tracking</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;font:16px system-ui,-apple-system,sans-serif;background:#edf3f4;color:#19313a;padding-bottom:78px;min-height:100vh}
@@ -92,7 +92,7 @@ function vEd(){const T_=ed.k=='T',o=T_?T[ed.id]:M[ed.id],c=cfgOf(T_?{torneo_id:e
  <button class="p w" data-a=saveEd>Guardar</button>${!T_&&o.config?'<button class=w data-a=resetEd>Usar el formato del torneo</button>':''}<button class=w data-a=closeEd>Cancelar</button></div></div>`}
 function vLogin(){return `<h2>🎾 Pádel Tracking</h2><div class=c>
 <input id=em type=email placeholder="Email"><input id=pw type=password placeholder="Contraseña (6+ caracteres)">
-<input id=nm placeholder="Nombre y Apellido">
+<input id=nm placeholder="Nombre y Apellido (solo para crear la cuenta)">
 <button class="p w" data-a=login>Entrar</button><button class=w data-a=signup>Crear cuenta</button>
 <p class=mut>${esc(msg)}</p></div>`}
 
@@ -113,8 +113,8 @@ function vTorneos(){
  if(sel){const t=T[sel],ps=Object.values(P).filter(p=>p.torneo_id==sel),ms=Object.values(M).filter(m=>m.torneo_id==sel),org=t.organizador_id==me.id;
   const ya=ps.some(p=>pl(p.id).includes(me.id));
   return `<button data-a=back>‹ Torneos</button><h2>${esc(t.nombre)}</h2><div class=mut>${esc(t.categoria)} · ${t.formato.replace('_',' ')} · ${t.estado.replace('_',' ')}</div><div class=mut>${t.fecha_inicio?'📅 '+fdate(t.fecha_inicio)+' · ':''}${fmtTxt(cfgOf({torneo_id:t.id}))}</div>${org?'<button data-a=edT>⚙ Fecha y formato</button>':''}
-  <div class=c><h3>Parejas (${ps.length})</h3>${ps.map(p=>`<div>• ${esc(pnf(p.id))}${p.confirmada?'':' ⏳ <span class=mut>(compañero sin confirmar)</span>'} <span class=mut>Elo ${p.elo_promedio_pareja}</span></div>`).join('')||'<span class=mut>Sin inscriptos</span>'}
-  ${t.estado=='inscripciones_abiertas'&&!ya?`<input id=cp type=email placeholder="Email de tu compañero (vacío = sin compañero)"><button class="p w" data-a=join>Inscribirme</button>`:''}
+  <div class=c><h3>Parejas (${ps.length})</h3>${ps.map(p=>`<div>• ${esc(pnf(p.id))}${p.confirmada?'':' ⏳ <span class=mut>(compañero sin confirmar)</span>'} <span class=mut>Puntaje promedio ${p.elo_promedio_pareja}</span></div>`).join('')||'<span class=mut>Sin inscriptos</span>'}
+  ${t.estado=='inscripciones_abiertas'&&!ya?`<input id=cp type=email placeholder="Email del compañero (opcional; podés inscribirte solo)"><p class=mut>El torneo necesita parejas completas y confirmadas para generar los partidos.</p><button class="p w" data-a=join>Inscribirme</button>`:''}
   ${org&&t.estado=='inscripciones_abiertas'?`<button class="p w" data-a=gen>⚡ Cerrar inscripciones y generar fixture</button>`:''}</div>
   ${ms.map(mCard).join('')}`}
  return `<h2>Torneos</h2>${Object.values(T).reverse().map(t=>`<div class=c data-a=open data-id=${t.id}><b>${esc(t.nombre)}</b> <span class=tag>${t.estado.replace('_',' ')}</span><div class=mut>${esc(t.categoria)} · ${t.formato.replace('_',' ')}${t.fecha_inicio?' · 📅 '+fdate(t.fecha_inicio):''}</div></div>`).join('')}
@@ -123,7 +123,7 @@ function vTorneos(){
  <label class=mut>Fecha de inicio</label><input id=tdt type=date>${fmtFields(DEF)}
  <button class="p w" data-a=newT>Crear torneo</button></div>`:'<p class=mut>Solo los organizadores habilitados pueden crear torneos.</p>'}`}
 
-function vRank(){return `<h2>Ranking Elo</h2><div class=c>${Object.values(J).sort((a,b)=>b.elo_actual-a.elo_actual).map((j,i)=>
+function vRank(){return `<h2>Ranking</h2><p class=mut>El puntaje inicial es 1200. Cambia al cerrar partidos según el resultado esperado entre ambas parejas: una victoria ante rivales más fuertes suma más, y perder ante rivales menos fuertes resta más. La cifra pequeña muestra victorias / partidos jugados.</p><div class=c>${Object.values(J).sort((a,b)=>b.elo_actual-a.elo_actual).map((j,i)=>
  `<div class="row sp" style="padding:6px 0"><span>${i+1}. ${esc(nm(j.id))}</span><span><b>${j.elo_actual}</b> <span class=mut>${j.partidos_ganados}/${j.partidos_jugados}</span></span></div>`).join('')}</div>`}
 
 function vScore(){const m=M[score.id],c=cfgOf(m),s=calc(score.evs,c),on=m.estado=='en_progreso',fin=s.w!=null;
@@ -139,14 +139,14 @@ function vScore(){const m=M[score.id],c=cfgOf(m),s=calc(score.evs,c),on=m.estado
  <div class=sc><div class=sets>${s.sets.map(x=>`<span class=tag>${x.join('-')}</span>`).join('')}</div>
  <div class=big>${s.g[0]} - ${s.g[1]}</div><h2>${pts(s,c)}</h2>${s.stb?'<div class=mut>Súper tie-break</div>':s.tb?'<div class=mut>Tie-break</div>':''}<div class=mut>${fmtTxt(c)}</div></div>
  ${m.estado=='pendiente'?`<div class=ban>El partido no empezó<br><button class="p w" data-a=start>▶ Comenzar partido</button></div>`:''}
- ${fin?`<div class=ban>🏁 Ganó ${esc(pn(s.w==0?m.pareja_a_id:m.pareja_b_id))} (${sets_(s)})<br><button class="p w" data-a=close>Cerrar partido y calcular Elo</button></div>`:''}
+ ${fin?`<div class=ban>🏁 Ganó ${esc(pn(s.w==0?m.pareja_a_id:m.pareja_b_id))} (${sets_(s)})<br><button class="p w" data-a=close>Cerrar partido y actualizar puntaje</button></div>`:''}
  <div class=teams>${team('A')}${team('B')}</div><div style="height:70px"></div>
  <div class=bar><button class=d data-a=undo ${score.evs.length?'':'disabled'}>↩ Deshacer</button></div>${sheet}`}
 
 function render(){
  if(!me){A.innerHTML=vLogin();return}
  if(score){A.innerHTML=vScore();return}
- A.innerHTML=`<div class="row sp"><span class=mut>👤 ${esc(me.nombre)} · Elo ${me.elo_actual}</span><button data-a=out>Salir</button></div>`+
+ A.innerHTML=`<div class="row sp"><span class=mut>👤 ${esc(me.nombre)} · Puntaje ${me.elo_actual}</span><button data-a=out>Salir</button></div>`+
  inv()+(tab=='partidos'?vPartidos():tab=='torneos'?vTorneos():vRank())+
  `<nav>${[['partidos','🎾 Partidos'],['torneos','🏆 Torneos'],['rank','📊 Ranking']].map(([k,l])=>`<button class="${tab==k?'on':''}" data-a=tab data-v=${k}>${l}</button>`).join('')}</nav>`+(ed?vEd():'')}
 
