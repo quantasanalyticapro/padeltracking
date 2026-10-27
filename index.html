@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#edf3f4"><title>Santa Pádel Club</title>
+<meta name="theme-color" content="#edf3f4"><title>Santa Padel Club</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f3d73'/%3E%3Cpath d='M10 44 L6 20 L22 32 L32 14 L42 32 L58 20 L54 44 Z' fill='%23c9a24b'/%3E%3Crect x='10' y='46' width='44' height='6' rx='2' fill='%2335b6dc'/%3E%3C/svg%3E">
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -100,7 +100,7 @@ const inv=()=>Object.values(P).filter(p=>p.jugador_2_id==me.id&&!p.confirmada).m
 function vEd(){const T_=ed.k=='T',o=T_?T[ed.id]:M[ed.id],c=cfgOf(T_?{torneo_id:ed.id}:o);
  return `<div class=sheet><div style="max-height:92vh;overflow:auto"><h3>${T_?'Fecha y formato del torneo':'Formato de este partido'}</h3>${T_?`<label class=mut>Fecha de inicio</label><input id=fdt type=date value="${o.fecha_inicio||''}">`:''}${fmtFields(c)}
  <button class="p w" data-a=saveEd>Guardar</button>${!T_&&o.config?'<button class=w data-a=resetEd>Usar el formato del torneo</button>':''}<button class=w data-a=closeEd>Cancelar</button></div></div>`}
-function vLogin(){return `<div class=brand><svg viewBox="0 0 64 40" width=72 aria-hidden=true><path d="M6 33 L3 11 L19 22 L32 5 L45 22 L61 11 L58 33 Z" fill="#c9a24b" stroke="#0f3d73" stroke-width="3" stroke-linejoin="round"/><rect x="6" y="34" width="52" height="5" rx="2" fill="#0f3d73"/><g fill="#fff" stroke="#0f3d73" stroke-width="2"><circle cx="3" cy="10" r="3"/><circle cx="32" cy="4" r="3"/><circle cx="61" cy="10" r="3"/></g></svg><div class=santa>SANTA</div><div class=sub>Pádel Club</div><div class=sub2>Torneos y ranking</div></div><div class=c>
+function vLogin(){return `<div class=brand><svg viewBox="0 0 64 40" width=72 aria-hidden=true><path d="M6 33 L3 11 L19 22 L32 5 L45 22 L61 11 L58 33 Z" fill="#c9a24b" stroke="#0f3d73" stroke-width="3" stroke-linejoin="round"/><rect x="6" y="34" width="52" height="5" rx="2" fill="#0f3d73"/><g fill="#fff" stroke="#0f3d73" stroke-width="2"><circle cx="3" cy="10" r="3"/><circle cx="32" cy="4" r="3"/><circle cx="61" cy="10" r="3"/></g></svg><div class=santa>SANTA</div><div class=sub>Padel Club</div><div class=sub2>Torneos y ranking</div></div><div class=c>
 <input id=em type=email placeholder="Email"><div class=pw-wrap><input id=pw type=password placeholder="Contraseña (6+ caracteres)"><button type=button class=pw-toggle id=togglePw aria-label="Mostrar contraseña" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/><path class=eye-slash d="m4 4 16 16"/></svg></button></div>
 <input id=nm placeholder="Nombre y Apellido (solo para crear la cuenta)">
 <button class="p w" data-a=login>Entrar</button><button class=w data-a=signup>Crear cuenta</button>
