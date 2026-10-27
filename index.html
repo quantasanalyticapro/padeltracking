@@ -17,6 +17,10 @@ button.p{background:#1c5965;color:#fff}button.d{background:#bd5e50;color:#fff}bu
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sp{justify-content:space-between}
 nav{position:fixed;z-index:5;bottom:0;left:0;right:0;display:flex;background:#183a43;padding:4px 10px calc(4px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px #142d3420}
 nav button{flex:1;border-radius:12px;background:none;color:#d9e5e6;padding:14px 4px}nav .on{color:#ff9a80;background:#ffffff14}
+
+/* Fixture visible en el teléfono */
+.fixture-board{margin:14px 0}.fixture-group{background:#f8fbfb;border:1px solid #dce7e8;border-radius:15px;padding:12px;margin:10px 0}.fixture-group summary{cursor:pointer;color:#19313a;font-weight:750;padding:4px 2px}.fixture-group summary::marker{color:#1c5965}.fixture-pairs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:12px 0}.fixture-pair{display:flex;align-items:center;gap:7px;min-width:0;background:#fff;border:1px solid #e5edef;border-radius:10px;padding:7px;font-size:.82em}.fixture-pair span:last-child{overflow-wrap:anywhere}.fixture-match.c{padding:11px;margin:8px 0;box-shadow:none}.fixture-games{margin-top:12px}.fixture-board>p{margin:0}.fixture-round{margin:15px 0 4px;color:#1c5965}
+@media(max-width:420px){.fixture-pairs{grid-template-columns:1fr}.fixture-match.c{padding:10px}.fixture-match .row{gap:6px}}
 .tag{font-size:.75em;padding:4px 9px;border-radius:99px;background:#e2edef;color:#1c5965;font-weight:650}
 .big{font-size:56px;font-weight:800;text-align:center;line-height:1;color:#1c5965;font-variant-numeric:tabular-nums}
 .sc{text-align:center;padding:12px 0}.sets{display:flex;gap:6px;justify-content:center;margin:8px 0}
@@ -123,15 +127,29 @@ function vLogin(){return `<div class=brand><svg viewBox="0 0 64 40" width=72 ari
 <button class="p w" data-a=login>Entrar</button><button class=w data-a=signup>Crear cuenta</button>
 <p class=mut>${esc(msg)}</p></div>`}
 
-function mCard(m){const t=T[m.torneo_id],c=canScore(m),d=isOrg(m)||isPl(m);
- return `<div class=c><div class="row sp"><span class=mut>${esc(t?.nombre)} · ${m.fase}${m.grupo?' '+m.grupo:''}</span><span class=tag>${m.estado.replace('_',' ')}</span></div>
- <div class=row style="margin:8px 0 2px;flex-wrap:nowrap">${pl(m.pareja_a_id).map(x=>av(x,'s')).join('')}<b>${esc(pn(m.pareja_a_id))}</b></div><div class=mut>vs</div><div class=row style="margin:2px 0 8px;flex-wrap:nowrap">${pl(m.pareja_b_id).map(x=>av(x,'s')).join('')}<b>${esc(pn(m.pareja_b_id))}</b></div>
+function mCard(m,compact=false){const t=T[m.torneo_id],c=canScore(m),d=isOrg(m)||isPl(m),teamName=id=>id?pn(id):'A definir';
+ return `<div class="c ${compact?'fixture-match':''}"><div class="row sp"><span class=mut>${esc(t?.nombre)} · ${m.fase}${m.grupo?' '+m.grupo:''}</span><span class=tag>${m.estado.replace('_',' ')}</span></div>
+ <div class=row style="margin:8px 0 2px;flex-wrap:nowrap">${pl(m.pareja_a_id).map(x=>av(x,'s')).join('')}<b>${esc(teamName(m.pareja_a_id))}</b></div><div class=mut>vs</div><div class=row style="margin:2px 0 8px;flex-wrap:nowrap">${pl(m.pareja_b_id).map(x=>av(x,'s')).join('')}<b>${esc(teamName(m.pareja_b_id))}</b></div>
  ${m.resultado_sets?`<div>Resultado: <b>${esc(m.resultado_sets)}</b></div>`:''}
  <div class=mut>${fmtTxt(cfgOf(m))}</div>
  ${m.anotador_id?`<div class=mut>Anotador: ${esc(nm(m.anotador_id))}</div>`:''}
  <div class=row>${c&&m.estado!='finalizado'&&m.pareja_a_id&&m.pareja_b_id?`<button class=p data-a=score data-id=${m.id}>📝 Anotar</button>`:''}
  ${d&&m.estado!='finalizado'?`<button data-a=des data-id=${m.id}>👤 Designar anotador</button>`:''}
  ${isOrg(m)&&m.estado=='pendiente'?`<button data-a=edM data-id=${m.id}>⚙ Formato</button>`:''}</div></div>`}
+
+function vFixtureMap(t,ps,ms){
+ if(!ms.length)return '';
+ if(t.formato=='grupos'){
+  const grupos=[...new Set(ms.map(m=>m.grupo||'A'))].sort();
+  return `<section class=fixture-board><h3>Mapa de cruces</h3><p class=mut>Todos pueden consultar los partidos. Tocá un cruce para anotar si te corresponde.</p>${grupos.map(g=>{
+   const games=ms.filter(m=>(m.grupo||'A')==g).sort((a,b)=>(a.numero||0)-(b.numero||0));
+   const ids=[...new Set(games.flatMap(m=>[m.pareja_a_id,m.pareja_b_id]).filter(Boolean))];
+   return `<details class=fixture-group open><summary>Grupo ${esc(g)} · ${ids.length} parejas · ${games.length} cruces</summary><div class=fixture-pairs>${ids.map((id,i)=>`<div class=fixture-pair>${av(pl(id)[0],'s')}<span>${esc(pnf(id))}</span></div>`).join('')}</div><div class=fixture-games>${games.map(m=>mCard(m,true)).join('')}</div></details>`
+  }).join('')}</section>`
+ }
+ const order=['octavos','cuartos','semifinal','final'];
+ return `<section class=fixture-board><h3>Mapa de cruces</h3><p class=mut>Los ganadores avanzan a la siguiente ronda.</p>${order.filter(f=>ms.some(m=>m.fase==f)).map(f=>`<div class=fixture-round><b>${f[0].toUpperCase()+f.slice(1)}</b></div>${ms.filter(m=>m.fase==f).sort((a,b)=>(a.numero||0)-(b.numero||0)).map(m=>mCard(m,true)).join('')}`).join('')}</section>`
+}
 
 function vPartidos(){const l=Object.values(M).filter(canScore).sort((a,b)=>(a.estado=='finalizado')-(b.estado=='finalizado'));
  return `<h2>Mis partidos</h2>${l.map(mCard).join('')||'<p class=mut>Todavía no tenés partidos. Creá o unite a un torneo.</p>'}`}
@@ -144,7 +162,7 @@ function vTorneos(){
   ${t.estado=='inscripciones_abiertas'&&!ya?`<input id=cp type=email placeholder="Email del compañero (opcional; podés inscribirte solo)"><p class=mut>El torneo necesita parejas completas y confirmadas para generar los partidos.</p><button class="p w" data-a=join>Inscribirme</button>`:''}
   ${org&&t.estado=='inscripciones_abiertas'?`<p class=mut>${puedeFixture?'Cuando generes el fixture se cerrarán las inscripciones.':'Completá y confirmá todas las parejas antes de generar el fixture.'}</p><button class="p w" data-a=gen ${puedeFixture?'':'disabled'}>⚡ Cerrar inscripciones y generar fixture</button>`:''}</div>
   ${org&&t.estado=='inscripciones_abiertas'?vParejasAdmin(t,ps):''}
-  ${ms.map(mCard).join('')}`}
+  ${vFixtureMap(t,ps,ms)}`}
  return `<h2>Torneos</h2>${Object.values(T).reverse().map(t=>`<div class=c data-a=open data-id=${t.id}><b>${esc(t.nombre)}</b> <span class=tag>${t.estado.replace('_',' ')}</span><div class=mut>${esc(t.categoria)} · ${t.formato.replace('_',' ')}${t.fecha_inicio?' · 📅 '+fdate(t.fecha_inicio):''}</div></div>`).join('')}
  ${me.es_organizador?`<div class=c><h3>Nuevo torneo</h3><input id=tn placeholder="Nombre"><input id=tc placeholder="Categoría (ej. 5ta)">
  <select id=tf><option value=grupos>Fase de grupos</option><option value=eliminacion_directa>Eliminación directa</option></select>
