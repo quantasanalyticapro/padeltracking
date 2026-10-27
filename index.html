@@ -30,6 +30,8 @@ nav button{flex:1;border-radius:12px;background:none;color:#d9e5e6;padding:14px 
 .sheet button{width:100%;min-height:60px;margin:6px 0;font-size:18px}
 .pw-wrap{position:relative}.pw-wrap input{padding-right:54px}.pw-toggle{position:absolute;right:7px;top:9px;width:40px;height:38px;padding:0;background:transparent;color:#1c5965;border-radius:8px;display:grid;place-items:center}.pw-toggle svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.pw-toggle .eye-slash{display:none}.pw-toggle.is-visible .eye-slash{display:block}
 .ban{background:#fff0e9;border:1px solid #f2d1c4;color:#794c43;border-radius:14px;padding:14px;margin:12px 0;text-align:center}
+/* fotos */
+.av{width:40px;height:40px;border-radius:50%;object-fit:cover;background:#dcebee;color:#1c5965;display:inline-grid;place-items:center;font-weight:700;font-size:14px;flex:none;vertical-align:middle}.av.s{width:28px;height:28px;font-size:11px}
 @media(max-width:420px){main{padding:14px 12px}.teams{gap:8px}.team{padding:7px}.team button{font-size:14px;padding:10px 6px}.big{font-size:48px}nav button{font-size:13px}}
 </style></head><body><main id="app"></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -70,6 +72,8 @@ const readFmt=()=>({sets:+$('#fs').value,juegos:+$('#fj').value,tb:+$('#ft').val
 /* ---------- Datos ---------- */
 const pl=id=>P[id]?[P[id].jugador_1_id,P[id].jugador_2_id].filter(Boolean):[];
 const nm=id=>{const j=J[id];if(!j)return '?';const d=Object.values(J).some(o=>o.id!=id&&o.nombre.trim().toLowerCase()==j.nombre.trim().toLowerCase());return d?`${j.nombre} (${(j.email||'').split('@')[0]})`:j.nombre};
+const ini=j=>(j.nombre||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+const av=(id,c='')=>{const j=J[id];if(!j)return '';return j.foto_url?`<img class="av ${c}" src="${esc(j.foto_url)}" alt="" loading=lazy>`:`<span class="av ${c}">${esc(ini(j))}</span>`};
 const byEmail=e=>Object.values(J).find(j=>(j.email||'').toLowerCase()==e.trim().toLowerCase());
 const ap=id=>{const j=J[id];if(!j)return '?';const w=j.nombre.trim().split(/\s+/),a=w[w.length-1];
  const d=Object.values(J).some(o=>o.id!=id&&o.nombre.trim().split(/\s+/).pop().toLowerCase()==a.toLowerCase());
@@ -99,7 +103,7 @@ function vLogin(){return `<h2>🎾 Pádel Tracking</h2><div class=c>
 
 function mCard(m){const t=T[m.torneo_id],c=canScore(m),d=isOrg(m)||isPl(m);
  return `<div class=c><div class="row sp"><span class=mut>${esc(t?.nombre)} · ${m.fase}${m.grupo?' '+m.grupo:''}</span><span class=tag>${m.estado.replace('_',' ')}</span></div>
- <div style="margin:8px 0"><b>${esc(pn(m.pareja_a_id))}</b><br><span class=mut>vs</span><br><b>${esc(pn(m.pareja_b_id))}</b></div>
+ <div class=row style="margin:8px 0 2px;flex-wrap:nowrap">${pl(m.pareja_a_id).map(x=>av(x,'s')).join('')}<b>${esc(pn(m.pareja_a_id))}</b></div><div class=mut>vs</div><div class=row style="margin:2px 0 8px;flex-wrap:nowrap">${pl(m.pareja_b_id).map(x=>av(x,'s')).join('')}<b>${esc(pn(m.pareja_b_id))}</b></div>
  ${m.resultado_sets?`<div>Resultado: <b>${esc(m.resultado_sets)}</b></div>`:''}
  <div class=mut>${fmtTxt(cfgOf(m))}</div>
  ${m.anotador_id?`<div class=mut>Anotador: ${esc(nm(m.anotador_id))}</div>`:''}
@@ -125,7 +129,7 @@ function vTorneos(){
  <button class="p w" data-a=newT>Crear torneo</button></div>`:'<p class=mut>Solo los organizadores habilitados pueden crear torneos.</p>'}`}
 
 function vRank(){return `<h2>Ranking</h2><p class=mut>El puntaje inicial es 1200. Cambia al cerrar partidos según el resultado esperado entre ambas parejas: una victoria ante rivales más fuertes suma más, y perder ante rivales menos fuertes resta más. La cifra pequeña muestra victorias / partidos jugados.</p><div class=c>${Object.values(J).sort((a,b)=>b.elo_actual-a.elo_actual).map((j,i)=>
- `<div class="row sp" style="padding:6px 0"><span>${i+1}. ${esc(nm(j.id))}</span><span><b>${j.elo_actual}</b> <span class=mut>${j.partidos_ganados}/${j.partidos_jugados}</span></span></div>`).join('')}</div>`}
+ `<div class="row sp" style="padding:6px 0"><span class=row style="flex-wrap:nowrap">${i+1}. ${av(j.id,'s')} ${esc(nm(j.id))}</span><span><b>${j.elo_actual}</b> <span class=mut>${j.partidos_ganados}/${j.partidos_jugados}</span></span></div>`).join('')}</div>`}
 
 function vScore(){const m=M[score.id],c=cfgOf(m),s=calc(score.evs,c),on=m.estado=='en_progreso',fin=s.w!=null;
  const team=eq=>`<div class="team T${eq}"><h3>${esc(pn(eq=='A'?m.pareja_a_id:m.pareja_b_id))}</h3>
@@ -135,7 +139,7 @@ function vScore(){const m=M[score.id],c=cfgOf(m),s=calc(score.evs,c),on=m.estado
  let sheet='';
  if(pick){const side=pick.t=='winner'?pick.e:(pick.e=='A'?'B':'A'),ids=pl(side=='A'?m.pareja_a_id:m.pareja_b_id);
   sheet=`<div class=sheet data-a=cancel><div><h3>${pick.t=='winner'?'¿Quién hizo el winner?':'¿Quién cometió el error?'}</h3>
-  ${ids.map(j=>`<button data-a=add data-t=${pick.t} data-e=${pick.e} data-j=${j}>${esc(nm(j))}</button>`).join('')}</div></div>`}
+  ${ids.map(j=>`<button data-a=add data-t=${pick.t} data-e=${pick.e} data-j=${j}>${av(j,'s')} ${esc(nm(j))}</button>`).join('')}</div></div>`}
  return `<div class=row sp><button data-a=back>‹ Salir</button><span class=mut>${esc(T[m.torneo_id]?.nombre)} · ${m.fase}</span></div>
  <div class=sc><div class=sets>${s.sets.map(x=>`<span class=tag>${x.join('-')}</span>`).join('')}</div>
  <div class=big>${s.g[0]} - ${s.g[1]}</div><h2>${pts(s,c)}</h2>${s.stb?'<div class=mut>Súper tie-break</div>':s.tb?'<div class=mut>Tie-break</div>':''}<div class=mut>${fmtTxt(c)}</div></div>
@@ -147,7 +151,7 @@ function vScore(){const m=M[score.id],c=cfgOf(m),s=calc(score.evs,c),on=m.estado
 function render(){
  if(!me){A.innerHTML=vLogin();return}
  if(score){A.innerHTML=vScore();return}
- A.innerHTML=`<div class="row sp"><span class=mut>👤 ${esc(me.nombre)} · Puntaje ${me.elo_actual}</span><button data-a=out>Salir</button></div>`+
+ A.innerHTML=`<div class="row sp"><span class=row data-a=foto style="cursor:pointer;flex-wrap:nowrap">${av(me.id)}<span class=mut>${esc(me.nombre)} · Puntaje ${me.elo_actual}<br>Tocá tu foto para cambiarla</span></span><input id=ff type=file accept="image/*" hidden><button data-a=out>Salir</button></div>`+
  inv()+(tab=='partidos'?vPartidos():tab=='torneos'?vTorneos():vRank())+
  `<nav>${[['partidos','🎾 Partidos'],['torneos','🏆 Torneos'],['rank','📊 Ranking']].map(([k,l])=>`<button class="${tab==k?'on':''}" data-a=tab data-v=${k}>${l}</button>`).join('')}</nav>`+(ed?vEd():'')}
 
@@ -172,9 +176,18 @@ function fixture(t){
 
 document.addEventListener('click',e=>{const b=e.target.closest('#togglePw');if(!b)return;const i=$('#pw'),visible=i.type=='password';i.type=visible?'text':'password';b.classList.toggle('is-visible',visible);b.setAttribute('aria-pressed',String(visible));b.setAttribute('aria-label',visible?'Ocultar contraseña':'Mostrar contraseña');i.focus()});
 
+document.addEventListener('change',async e=>{if(e.target.id!='ff'||!e.target.files[0])return;const f=e.target.files[0];
+ try{const bmp=await createImageBitmap(f),n=256,c=document.createElement('canvas');c.width=c.height=n;
+  const m=Math.min(bmp.width,bmp.height);c.getContext('2d').drawImage(bmp,(bmp.width-m)/2,(bmp.height-m)/2,m,m,0,0,n,n);
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.85)),path=me.id+'/avatar.jpg';
+  const u=await sb.storage.from('avatares').upload(path,blob,{upsert:true,contentType:'image/jpeg'});if(u.error)throw u.error;
+  const url=sb.storage.from('avatares').getPublicUrl(path).data.publicUrl+'?v='+Date.now();
+  const r=await sb.from('jugadores').update({foto_url:url}).eq('id',me.id);if(r.error)throw r.error;
+  await load();render()}catch(x){alert('No se pudo subir la foto: '+(x.message||x))}});
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]');if(!b||b.disabled)return;
  if(e.target.closest('.sheet>div')&&b.dataset.a=='cancel')return;
  const d=b.dataset,a=d.a;
+ if(a=='foto'){$('#ff').click();return}
  try{
  if(a=='login'){const r=await sb.auth.signInWithPassword({email:$('#em').value.trim(),password:$('#pw').value});if(err(r))return;await load()}
  else if(a=='signup'){const r=await sb.auth.signUp({email:$('#em').value.trim(),password:$('#pw').value,options:{data:{nombre:$('#nm').value.trim()}}});
