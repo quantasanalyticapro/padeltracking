@@ -46,7 +46,7 @@ let K=KEY||localStorage.getItem('sbk')||'';
 if(!K){K=(prompt('Pegá la clave publicable de Supabase (Settings > API Keys)')||'').trim();localStorage.setItem('sbk',K)}
 const sb=supabase.createClient(URL_,K),$=s=>document.querySelector(s),A=$('#app');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let me=null,J={},T={},P={},M={},tab='partidos',sel=null,score=null,pick=null,msg='',ed=null;
+let me=null,J={},T={},P={},M={},Q={},tab='partidos',sel=null,score=null,pick=null,msg='',ed=null;
 
 /* ---------- Motor de puntuación configurable ----------
    cfg: sets (1|3) · juegos (4|6) · tb (0|7|10 al empatar juegos) · stb (0|7|10 3.er set) · oro (punto de oro) */
@@ -97,13 +97,23 @@ const isPl=m=>[m.pareja_a_id,m.pareja_b_id].some(i=>pl(i).includes(me.id));
 const isOrg=m=>T[m.torneo_id]?.organizador_id==me.id;
 const canScore=m=>isOrg(m)||isPl(m)||m.anotador_id==me.id;
 async function load(){
- const r=await Promise.all(['jugadores','torneos','parejas_inscritas','partidos_fixture'].map(n=>sb.from(n).select('*').order('creado_at')));
+ const r=await Promise.all(['jugadores','torneos','parejas_inscritas','partidos_fixture','propuestas_pareja'].map(n=>sb.from(n).select('*').order('creado_at')));
  const mp=d=>Object.fromEntries((d||[]).map(x=>[x.id,x]));
- J=mp(r[0].data);T=mp(r[1].data);P=mp(r[2].data);M=mp(r[3].data);
+ J=mp(r[0].data);T=mp(r[1].data);P=mp(r[2].data);M=mp(r[3].data);Q=mp(r[4].data);
  const {data:{user}}=await sb.auth.getUser();me=user?J[user.id]:null}
 
 /* ---------- Vistas ---------- */
 const inv=()=>Object.values(P).filter(p=>p.jugador_2_id==me.id&&!p.confirmada).map(p=>`<div class=ban>${esc(nm(p.jugador_1_id))} te invitó a jugar "${esc(T[p.torneo_id]?.nombre)}" como pareja<div class=row style="justify-content:center;margin-top:8px"><button class=p data-a=acc data-id=${p.id}>Aceptar</button><button class=d data-a=rej data-id=${p.id}>Rechazar</button></div></div>`).join('');
+const invPareja=()=>Object.values(Q).filter(q=>q.estado=='pendiente'&&q.jugador_invitado_id==me.id).map(q=>`<div class=ban>El organizador te propone como pareja de ${esc(nm(q.jugador_origen_id))} para "${esc(T[q.torneo_id]?.nombre)}".<div class=row style="justify-content:center;margin-top:8px"><button class=p data-a=propAccept data-id=${q.id}>Aceptar propuesta</button><button class=d data-a=propReject data-id=${q.id}>Rechazar</button></div></div>`).join('');
+function vParejasAdmin(t,ps){
+ const pending=Object.values(Q).filter(q=>q.torneo_id==t.id&&q.estado=='pendiente');
+ const ocupados=new Set(pending.flatMap(q=>[q.jugador_origen_id,q.jugador_invitado_id]));
+ const solos=ps.filter(p=>!p.jugador_2_id);
+ const disponibles=solos.filter(p=>!ocupados.has(p.jugador_1_id));
+ const opts=disponibles.map(p=>`<option value="${p.id}">${esc(nm(p.jugador_1_id))}</option>`).join('');
+ const listado=solos.map(p=>`<div class=row style="justify-content:space-between;padding:4px 0">${esc(nm(p.jugador_1_id))}<span class=mut>${ocupados.has(p.jugador_1_id)?'Propuesta pendiente':'Sin pareja'}</span></div>`).join('')||'<span class=mut>No hay inscriptos sin pareja.</span>';
+ const propuestas=pending.map(q=>`<div class=row style="justify-content:space-between;padding:5px 0">${esc(nm(q.jugador_origen_id))} + ${esc(nm(q.jugador_invitado_id))}<span class=mut>Pendiente de aceptación</span><button class=d data-a=propCancel data-id=${q.id}>Cancelar</button></div>`).join('');
+ return `<div class=c><h3>Inscriptos sin pareja (${solos.length})</h3>${listado}${disponibles.length>=2?`<p class=mut>Elegí dos. La otra persona recibirá la propuesta dentro de la app.</p><div class=row><select id=pairA style="flex:1"><option value="">Primera persona</option>${opts}</select><select id=pairB style="flex:1"><option value="">Compañero propuesto</option>${opts}</select></div><button class="p w" data-a=propMake>Proponer pareja</button>`:solos.length<2?'<p class=mut>Se necesitan al menos dos inscriptos sin pareja para proponer un dúo.</p>':'<p class=mut>Los inscriptos disponibles ya tienen una propuesta pendiente.</p>'}${propuestas?`<hr><h3>Propuestas pendientes</h3>${propuestas}`:''}</div>`}
 function vEd(){const T_=ed.k=='T',o=T_?T[ed.id]:M[ed.id],c=cfgOf(T_?{torneo_id:ed.id}:o);
  return `<div class=sheet><div style="max-height:92vh;overflow:auto"><h3>${T_?'Fecha y formato del torneo':'Formato de este partido'}</h3>${T_?`<label class=mut>Fecha de inicio</label><input id=fdt type=date value="${o.fecha_inicio||''}">`:''}${fmtFields(c)}
  <button class="p w" data-a=saveEd>Guardar</button>${!T_&&o.config?'<button class=w data-a=resetEd>Usar el formato del torneo</button>':''}<button class=w data-a=closeEd>Cancelar</button></div></div>`}
@@ -128,11 +138,12 @@ function vPartidos(){const l=Object.values(M).filter(canScore).sort((a,b)=>(a.es
 
 function vTorneos(){
  if(sel){const t=T[sel],ps=Object.values(P).filter(p=>p.torneo_id==sel),ms=Object.values(M).filter(m=>m.torneo_id==sel),org=t.organizador_id==me.id;
-  const ya=ps.some(p=>pl(p.id).includes(me.id));
+  const ya=ps.some(p=>pl(p.id).includes(me.id)),puedeFixture=ps.length>=2&&ps.every(p=>p.jugador_2_id&&p.confirmada);
   return `<button data-a=back>‹ Torneos</button><h2>${esc(t.nombre)}</h2><div class=mut>${esc(t.categoria)} · ${t.formato.replace('_',' ')} · ${t.estado.replace('_',' ')}</div><div class=mut>${t.fecha_inicio?'📅 '+fdate(t.fecha_inicio)+' · ':''}${fmtTxt(cfgOf({torneo_id:t.id}))}</div>${org?'<button data-a=edT>⚙ Fecha y formato</button>':''}
-  <div class=c><h3>Parejas (${ps.length})</h3>${ps.map(p=>`<div>• ${esc(pnf(p.id))}${p.confirmada?'':' ⏳ <span class=mut>(compañero sin confirmar)</span>'} <span class=mut>Puntaje promedio ${p.elo_promedio_pareja}</span></div>`).join('')||'<span class=mut>Sin inscriptos</span>'}
+  <div class=c><h3>Parejas (${ps.length})</h3>${ps.map(p=>`<div>• ${esc(pnf(p.id))}${!p.jugador_2_id?' <span class=mut>(sin pareja)</span>':p.confirmada?'':' ⏳ <span class=mut>(compañero sin confirmar)</span>'} <span class=mut>Puntaje promedio ${p.elo_promedio_pareja}</span></div>`).join('')||'<span class=mut>Sin inscriptos</span>'}
   ${t.estado=='inscripciones_abiertas'&&!ya?`<input id=cp type=email placeholder="Email del compañero (opcional; podés inscribirte solo)"><p class=mut>El torneo necesita parejas completas y confirmadas para generar los partidos.</p><button class="p w" data-a=join>Inscribirme</button>`:''}
-  ${org&&t.estado=='inscripciones_abiertas'?`<button class="p w" data-a=gen>⚡ Cerrar inscripciones y generar fixture</button>`:''}</div>
+  ${org&&t.estado=='inscripciones_abiertas'?`<p class=mut>${puedeFixture?'Cuando generes el fixture se cerrarán las inscripciones.':'Completá y confirmá todas las parejas antes de generar el fixture.'}</p><button class="p w" data-a=gen ${puedeFixture?'':'disabled'}>⚡ Cerrar inscripciones y generar fixture</button>`:''}</div>
+  ${org&&t.estado=='inscripciones_abiertas'?vParejasAdmin(t,ps):''}
   ${ms.map(mCard).join('')}`}
  return `<h2>Torneos</h2>${Object.values(T).reverse().map(t=>`<div class=c data-a=open data-id=${t.id}><b>${esc(t.nombre)}</b> <span class=tag>${t.estado.replace('_',' ')}</span><div class=mut>${esc(t.categoria)} · ${t.formato.replace('_',' ')}${t.fecha_inicio?' · 📅 '+fdate(t.fecha_inicio):''}</div></div>`).join('')}
  ${me.es_organizador?`<div class=c><h3>Nuevo torneo</h3><input id=tn placeholder="Nombre"><input id=tc placeholder="Categoría (ej. 5ta)">
@@ -164,7 +175,7 @@ function render(){
  if(!me){A.innerHTML=vLogin();return}
  if(score){A.innerHTML=vScore();return}
  A.innerHTML=`<div class="row sp"><span class=row data-a=foto style="cursor:pointer;flex-wrap:nowrap">${av(me.id)}<span class=mut>${esc(me.nombre)} · Puntaje ${me.elo_actual}<br>Tocá tu foto para cambiarla</span></span><input id=ff type=file accept="image/*" hidden><span class=row style="gap:6px;flex-wrap:nowrap"><button data-a=nombre>✏️ Mi nombre</button><button data-a=out>Salir</button></span></div>`+
- inv()+(tab=='partidos'?vPartidos():tab=='torneos'?vTorneos():vRank())+
+ inv()+invPareja()+(tab=='partidos'?vPartidos():tab=='torneos'?vTorneos():vRank())+
  `<nav>${[['partidos','🎾 Partidos'],['torneos','🏆 Torneos'],['rank','📊 Ranking']].map(([k,l])=>`<button class="${tab==k?'on':''}" data-a=tab data-v=${k}>${l}</button>`).join('')}</nav>`+(ed?vEd():'')}
 
 /* ---------- Acciones ---------- */
@@ -217,6 +228,10 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]')
  else if(a=='gen'){const rows=fixture(T[sel]);if(!rows)return;
   const r=await sb.from('partidos_fixture').insert(rows);if(err(r))return;
   await sb.from('torneos').update({estado:'en_progreso'}).eq('id',sel);await load()}
+ else if(a=='propMake'){const a1=$('#pairA').value,b1=$('#pairB').value;if(!a1||!b1||a1==b1){alert('Elegí dos inscriptos distintos.');return}
+  const r=await sb.rpc('proponer_pareja_organizador',{p_pareja_origen_id:a1,p_pareja_invitada_id:b1});if(err(r))return;await load()}
+ else if(a=='propAccept'||a=='propReject'){const r=await sb.rpc('responder_propuesta_pareja',{p_propuesta_id:d.id,p_aceptar:a=='propAccept'});if(err(r))return;await load()}
+ else if(a=='propCancel'){const r=await sb.rpc('cancelar_propuesta_pareja',{p_propuesta_id:d.id});if(err(r))return;await load()}
  else if(a=='acc'){const r=await sb.from('parejas_inscritas').update({confirmada:true}).eq('id',d.id);if(err(r))return;await load()}
  else if(a=='rej'){if(!confirm('¿Rechazar la invitación?'))return;const r=await sb.from('parejas_inscritas').update({jugador_2_id:null}).eq('id',d.id);if(err(r))return;await load()}
  else if(a=='edT'){ed={k:'T',id:sel}}
