@@ -51,28 +51,35 @@ let me=null,J={},T={},P={},M={},tab='partidos',sel=null,score=null,pick=null,msg
 /* ---------- Motor de puntuación configurable ----------
    cfg: sets (1|3) · juegos (4|6) · tb (0|7|10 al empatar juegos) · stb (0|7|10 3.er set) · oro (punto de oro) */
 const DEF={sets:3,juegos:6,tb:7,stb:0,oro:true};
-function calc(evs,c=DEF){const need=c.sets==1?1:2,J=c.juegos,s={sets:[],g:[0,0],p:[0,0],tb:false,stb:false,w:null};
+const gm=c=>c.oro===true?'oro':c.oro===false?'ventaja':(c.oro||'oro');  // oro | ventaja | estrella
+function calc(evs,c=DEF){const need=c.sets==1?1:2,J=c.juegos,s={sets:[],g:[0,0],p:[0,0],tb:false,stb:false,w:null,dz:0,gold:false,dec:false};
  const endSet=a=>{const r=[...(s.stb?s.p:s.g)];s.sets.push(r);s.g=[0,0];s.p=[0,0];s.tb=false;s.stb=false;
   if(s.sets.filter(x=>x[a]>x[1-a]).length==need)s.w=a;else if(c.sets==3&&c.stb>0&&s.sets.length==2)s.stb=true};
- const game=a=>{const b=1-a;s.g[a]++;s.p=[0,0];
-  if((s.g[a]>=J&&s.g[a]-s.g[b]>=2)||(c.tb>0&&s.g[a]==J+1))endSet(a);
-  else if(c.tb>0&&s.g[0]==J&&s.g[1]==J)s.tb=true};
+ const K=J==4?3:J;  // set a 4: el desempate se juega al llegar a 3-3 (y el set termina 4-3)
+ const game=a=>{const b=1-a;s.g[a]++;s.p=[0,0];s.dz=0;s.gold=false;s.dec=false;
+  const win=K<J?s.g[a]>=J:((s.g[a]>=J&&s.g[a]-s.g[b]>=2)||((c.tb>0||c.jd)&&s.g[a]==J+1));
+  if(win)endSet(a);
+  else if(s.g[0]==K&&s.g[1]==K){if(c.jd)s.dec=true;else if(c.tb>0)s.tb=true}};
  for(const e of evs){if(s.w!=null)break;const a=e.equipo_que_suma=='A'?0:1,b=1-a;s.p[a]++;
   if(s.stb){if(s.p[a]>=c.stb&&s.p[a]-s.p[b]>=2)endSet(a)}
   else if(s.tb){if(s.p[a]>=c.tb&&s.p[a]-s.p[b]>=2)game(a)}
-  else if(c.oro?s.p[a]==4:(s.p[a]>=4&&s.p[a]-s.p[b]>=2))game(a)}
+  else{const md=s.dec?'oro':gm(c);
+   if(md=='oro'){if(s.p[a]==4)game(a)}
+   else if(s.gold)game(a)
+   else if(s.p[a]>=4&&s.p[a]-s.p[b]>=2)game(a)
+   else if(md=='estrella'&&s.p[0]==s.p[1]&&s.p[0]>=3){s.dz++;if(s.dz==3)s.gold=true}}}
  return s}
-const pts=(s,c=DEF)=>s.tb||s.stb?s.p.join(' - '):(!c.oro&&s.p[0]>=3&&s.p[1]>=3)?(s.p[0]==s.p[1]?'40 - 40':s.p[0]>s.p[1]?'Ad - 40':'40 - Ad'):s.p.map(x=>[0,15,30,40][x]).join(' - ');
+const pts=(s,c=DEF)=>s.tb||s.stb?s.p.join(' - '):(gm(c)!='oro'&&s.p[0]>=3&&s.p[1]>=3)?(s.p[0]==s.p[1]?'40 - 40':s.p[0]>s.p[1]?'Ad - 40':'40 - Ad'):s.p.map(x=>[0,15,30,40][x]).join(' - ');
 const txt=(s,c)=>s.sets.map(x=>x.join('-')).join(' ')+(s.sets.length?' | ':'')+s.g.join('-')+' ('+pts(s,c)+')';
 const sets_=s=>s.sets.map(x=>x.join('-')).join(', ');
-const fmtTxt=c=>(c.sets==1?'1 set':'Mejor de 3')+' · '+c.juegos+' juegos'+(c.tb?' · TB a '+c.tb:' · sin TB')+(c.sets==3&&c.stb?' · 3.º: súper TB a '+c.stb:'')+(c.oro?' · punto de oro':' · ventaja');
+const fmtTxt=c=>(c.sets==1?'1 set':'Mejor de 3')+' · '+c.juegos+' juegos'+(c.jd?' · empate: un juego más con punto de oro':c.tb?' · TB a '+c.tb:' · sin TB')+(c.sets==3&&c.stb?' · 3.º: súper TB a '+c.stb:'')+({oro:' · punto de oro',ventaja:' · ventaja',estrella:' · punto estrella'})[gm(c)];
 const fdate=f=>f?new Date(f+'T12:00').toLocaleDateString('es-AR'):'';
 const selF=(id,l,o,v)=>`<label class=mut>${l}</label><select id=${id}>${o.map(([k,t])=>`<option value="${k}" ${String(v)==String(k)?'selected':''}>${t}</option>`).join('')}</select>`;
 const fmtFields=c=>selF('fs','Sets',[[1,'1 set'],[3,'Mejor de 3 sets']],c.sets)+selF('fj','Juegos por set',[[6,'6 juegos'],[4,'4 juegos']],c.juegos)
- +selF('ft','Si empatan en juegos',[[7,'Tie-break a 7'],[10,'Súper tie-break a 10'],[0,'Sin tie-break (2 juegos de ventaja)']],c.tb)
+ +selF('ft','Si empatan en juegos (6-6; en sets a 4, 3-3)',[[7,'Tie-break a 7'],[10,'Súper tie-break a 10'],['jd','Un juego más (se define con punto de oro)'],[0,'Sin tie-break (se sigue jugando)']],c.jd?'jd':c.tb)
  +selF('fd','3.er set (si es mejor de 3)',[[0,'Set normal'],[10,'Súper tie-break a 10'],[7,'Súper tie-break a 7']],c.stb)
- +selF('fo','Punto de oro (40-40)',[[true,'Sí, punto de oro'],[false,'No, con ventaja']],c.oro);
-const readFmt=()=>({sets:+$('#fs').value,juegos:+$('#fj').value,tb:+$('#ft').value,stb:+$('#fd').value,oro:$('#fo').value=='true'});
+ +selF('fo','Cuando llegan a 40-40',[['oro','Punto de oro (un solo punto decide)'],['estrella','Punto estrella (hasta 2 ventajas y luego punto de oro)'],['ventaja','Ventaja clásica (se gana por 2 puntos)']],gm(c));
+const readFmt=()=>({sets:+$('#fs').value,juegos:+$('#fj').value,tb:$('#ft').value=='jd'?0:+$('#ft').value,jd:$('#ft').value=='jd',stb:+$('#fd').value,oro:$('#fo').value});
 
 /* ---------- Datos ---------- */
 const pl=id=>P[id]?[P[id].jugador_1_id,P[id].jugador_2_id].filter(Boolean):[];
@@ -147,7 +154,7 @@ function vScore(){const m=M[score.id],c=cfgOf(m),s=calc(score.evs,c),on=m.estado
   ${ids.map(j=>`<button data-a=add data-t=${pick.t} data-e=${pick.e} data-j=${j}>${av(j,'s')} ${esc(nm(j))}</button>`).join('')}</div></div>`}
  return `<div class=row sp><button data-a=back>‹ Salir</button><span class=mut>${esc(T[m.torneo_id]?.nombre)} · ${m.fase}</span></div>
  <div class=sc><div class=sets>${s.sets.map(x=>`<span class=tag>${x.join('-')}</span>`).join('')}</div>
- <div class=big>${s.g[0]} - ${s.g[1]}</div><h2>${pts(s,c)}</h2>${s.stb?'<div class=mut>Súper tie-break</div>':s.tb?'<div class=mut>Tie-break</div>':''}<div class=mut>${fmtTxt(c)}</div></div>
+ <div class=big>${s.g[0]} - ${s.g[1]}</div><h2>${pts(s,c)}</h2>${(!s.tb&&!s.stb&&s.w==null&&(s.gold||((s.dec||gm(c)=='oro')&&s.p[0]==3&&s.p[1]==3)))?'<div class=tag style="background:#c9a24b;color:#fff">★ PUNTO DE ORO</div>':''}${s.dec?'<div class=mut>Último juego (3-3) · punto de oro</div>':''}${s.stb?'<div class=mut>Súper tie-break</div>':s.tb?'<div class=mut>Tie-break</div>':''}<div class=mut>${fmtTxt(c)}</div></div>
  ${m.estado=='pendiente'?`<div class=ban>El partido no empezó<br><button class="p w" data-a=start>▶ Comenzar partido</button></div>`:''}
  ${fin?`<div class=ban>🏁 Ganó ${esc(pn(s.w==0?m.pareja_a_id:m.pareja_b_id))} (${sets_(s)})<br><button class="p w" data-a=close>Cerrar partido y actualizar puntaje</button></div>`:''}
  <div class=teams>${team('A')}${team('B')}</div><div style="height:70px"></div>
@@ -156,7 +163,7 @@ function vScore(){const m=M[score.id],c=cfgOf(m),s=calc(score.evs,c),on=m.estado
 function render(){
  if(!me){A.innerHTML=vLogin();return}
  if(score){A.innerHTML=vScore();return}
- A.innerHTML=`<div class="row sp"><span class=row data-a=foto style="cursor:pointer;flex-wrap:nowrap">${av(me.id)}<span class=mut>${esc(me.nombre)} · Puntaje ${me.elo_actual}<br>Tocá tu foto para cambiarla</span></span><input id=ff type=file accept="image/*" hidden><button data-a=out>Salir</button></div>`+
+ A.innerHTML=`<div class="row sp"><span class=row data-a=foto style="cursor:pointer;flex-wrap:nowrap">${av(me.id)}<span class=mut>${esc(me.nombre)} · Puntaje ${me.elo_actual}<br>Tocá tu foto para cambiarla</span></span><input id=ff type=file accept="image/*" hidden><span class=row style="gap:6px;flex-wrap:nowrap"><button data-a=nombre>✏️ Mi nombre</button><button data-a=out>Salir</button></span></div>`+
  inv()+(tab=='partidos'?vPartidos():tab=='torneos'?vTorneos():vRank())+
  `<nav>${[['partidos','🎾 Partidos'],['torneos','🏆 Torneos'],['rank','📊 Ranking']].map(([k,l])=>`<button class="${tab==k?'on':''}" data-a=tab data-v=${k}>${l}</button>`).join('')}</nav>`+(ed?vEd():'')}
 
@@ -217,6 +224,11 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]')
  else if(a=='closeEd'){ed=null}
  else if(a=='resetEd'){const r=await sb.from('partidos_fixture').update({config:null}).eq('id',ed.id);if(err(r))return;ed=null;await load()}
  else if(a=='saveEd'){const r=ed.k=='T'?await sb.from('torneos').update({config:readFmt(),fecha_inicio:$('#fdt').value||null}).eq('id',ed.id):await sb.from('partidos_fixture').update({config:readFmt()}).eq('id',ed.id);if(err(r))return;ed=null;await load()}
+ else if(a=='nombre'){const v=prompt('Tu nombre y apellido (así se verá en los partidos):',me.nombre);if(v===null)return;
+  const n=v.trim().replace(/\s+/g,' ');if(!n)return;
+  if(n.length>80){alert('El nombre es demasiado largo (máximo 80 letras).');return}
+  if(n.split(' ').length<2&&!confirm('Tiene una sola palabra. Se recomienda "Nombre Apellido" (por ejemplo: Marcelo Carrizo). ¿Guardar igual?'))return;
+  const r=await sb.from('jugadores').update({nombre:n}).eq('id',me.id);if(err(r))return;await load()}
  else if(a=='des'){const v=prompt('Email del jugador registrado que va a anotar (vacío = yo):');if(v===null)return;
   let id=me.id;if(v.trim()){const f=byEmail(v);if(!f){alert('No hay ningún jugador registrado con ese email.');return}id=f.id}
   const r=await sb.from('partidos_fixture').update({anotador_id:id}).eq('id',d.id);if(err(r))return;await load()}
