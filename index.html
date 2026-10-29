@@ -77,6 +77,25 @@ body.app-screen .scoring-board{padding:13px 10px;margin:8px 0 12px;border:2px so
 .scoring-start{padding:10px;border-color:#806d3e;border-radius:12px;background:#102f48;color:#d5e0e4;text-align:center}.scoring-start .w{margin-top:8px}.scoring-start .w:disabled{opacity:.45}
 .point-pair-choice{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:7px 0}.point-pair-choice>span{grid-column:1/-1;text-align:center;color:#a9c3d1;font-size:9px;letter-spacing:.1em}.point-pair-choice button{min-height:34px;padding:6px;border:1px solid #526d80;border-radius:9px;background:#14364e;color:#eef4f4;font-size:10px}.point-pair-choice button.selected{border-color:#f0d674;background:#d9bf68;color:#09263d}.scoring-action-title{text-align:center;margin:10px 0 0;color:#f0d36a;font:700 17px Georgia,serif}.scoring-action-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}.scoring-action-row button{min-width:0;min-height:70px;padding:7px 3px;border:1px solid #a28a42;border-radius:13px;background:linear-gradient(145deg,#173f5b,#0e2d46);color:#f7f1dc;text-align:center;font-size:10px;line-height:1.3}.scoring-action-row button b{display:block;margin-bottom:3px;color:#f2d36a;font-size:18px}.scoring-action-row button.primary{border:2px solid #f4dc8b;background:linear-gradient(135deg,#f1dc98,#cfaa43);color:#08243a}.scoring-action-row button.primary b{color:#09253a}.scoring-action-row button:disabled{opacity:.45}.scoring-action-hint{text-align:center;margin-top:8px;color:#9eb9c7;font-size:9px}
 @media(max-width:360px){.scoring-avatar{width:52px;height:52px;margin-left:-10px}.scoring-action-row{gap:5px}.scoring-action-row button{font-size:9px}}
+/* Avatares de parejas en fixture: 1px menos que el avatar de perfil (46px) */
+body .match-side .pair-avatar .av,body .fixture-pair .pair-avatar .av,body .pair-list-item .pair-avatar .av{width:45px;height:45px;font-size:15px}
+/* iniciales centradas dentro del círculo cuando no hay foto */
+body .pair-avatar span.av{display:grid;place-items:center;box-sizing:border-box;background:#0d2b43;color:#f1d982;font-weight:700}
+body .match-side .pair-avatar+.pair-avatar,body .fixture-pair .pair-avatar+.pair-avatar,body .pair-list-item .pair-avatar+.pair-avatar{margin-left:-14px}
+/* Llave: conectores, estados y puntaje de pareja */
+body .bracket-round .bracket-match:after{display:none}
+body .bracket-round-matches{justify-content:stretch;gap:0}
+.bracket-pair{position:relative;display:flex;flex-direction:column;flex:1}
+.bm-slot{position:relative;flex:1;display:flex;align-items:center;padding:6px 0}.bm-slot>.bracket-match{width:100%}
+.bracket-round:not(.is-last) .bm-slot::after{content:"";position:absolute;right:-9px;top:50%;width:9px;border-top:1px solid #b89c52}
+.bracket-round:not(.is-last) .bracket-pair::after{content:"";position:absolute;right:-9px;top:25%;bottom:25%;border-right:1px solid #b89c52}
+.bracket-round:not(.is-first) .bm-slot::before{content:"";position:absolute;left:-9px;top:50%;width:9px;border-top:1px solid #b89c52}
+.bracket-match.is-done{opacity:.8}.bracket-match.is-live{border-color:#f0d166;box-shadow:0 0 0 1px #f0d16655,0 5px 13px #03152355}
+.bracket-team.loser{opacity:.5;color:#9fb1ba}.bracket-team.loser .av{filter:grayscale(1)}
+.bracket-round.round-done h4{opacity:.6}
+.bt-elo{margin-left:auto;font-style:normal;font-size:9px;font-weight:800;color:#e4cb79;border:1px solid #806d3e;border-radius:6px;padding:1px 5px;white-space:nowrap}.bt-elo::before{content:"★ "}
+.bracket-team>b{margin-left:4px}
+.bracket-toggle{width:100%;margin:0 0 8px;padding:8px;font-size:12px}
 </style></head><body><main id="app"></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
@@ -86,7 +105,7 @@ let K=KEY||localStorage.getItem('sbk')||'';
 if(!K){K=(prompt('Pegá la clave publicable de Supabase (Settings > API Keys)')||'').trim();localStorage.setItem('sbk',K)}
 const sb=supabase.createClient(URL_,K),$=s=>document.querySelector(s),A=$('#app');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let recovery=/type=recovery/.test(location.hash),loginEmail='',me=null,J={},T={},P={},M={},Q={},tab='partidos',sel=null,score=null,pick=null,assignMatchId=null,assignQuery='',scoringTeam='A',msg='',ed=null,previewRows=null,notifOpen=false,newTournamentOpen=false,newTournamentCover=null,newTournamentCoverData='',coverTargetId=null,pushEnabled=false,pushStatusUser=null,pushStatusLoading=false,pushToggleBusy=false;
+let recovery=/type=recovery/.test(location.hash),loginEmail='',hideDone=false,bracketX={},me=null,J={},T={},P={},M={},Q={},tab='partidos',sel=null,score=null,pick=null,assignMatchId=null,assignQuery='',scoringTeam='A',msg='',ed=null,previewRows=null,notifOpen=false,newTournamentOpen=false,newTournamentCover=null,newTournamentCoverData='',coverTargetId=null,pushEnabled=false,pushStatusUser=null,pushStatusLoading=false,pushToggleBusy=false;
 
 /* ---------- Motor de puntuación configurable ----------
    cfg: sets (1|3) · juegos (4|6) · tb (0|7|10 al empatar juegos) · stb (0|7|10 3.er set) · oro (punto de oro) */
@@ -229,9 +248,10 @@ function tournamentTable(t,ps,ms){const data=tournamentTableData(t,ps,ms);if(!da
  return `<section><h3>Tabla del torneo</h3>${table}${finalUi}</section>`
 }
 
-function bracketMatch(m){const winner=m.pareja_ganadora_id,status=m.estado=='finalizado'?'FINALIZADO':m.estado=='en_progreso'?'EN JUEGO':m.pareja_a_id&&m.pareja_b_id?'POR JUGAR':'ESPERANDO CLASIFICADOS';
- const side=id=>`<div class="bracket-team ${id&&id==winner?'winner':''}">${pairAv(id,'s')}<span>${esc(id?pn(id):'Por definir')}</span>${id&&id==winner?'<b>♛</b>':''}</div>`;
- return `<article class=bracket-match>${side(m.pareja_a_id)}${side(m.pareja_b_id)}${m.resultado_sets?`<div class=bracket-score>${esc(m.resultado_sets)}</div>`:''}<div class="bracket-status ${m.estado=='en_progreso'?'live':m.estado=='finalizado'?'done':''}">${status}</div><div class=bracket-actions>${canScore(m)&&m.estado!='finalizado'&&m.pareja_a_id&&m.pareja_b_id?`<button class=p data-a=score data-id=${m.id}>📝 Anotar</button>`:''}${isOrg(m)&&m.estado!='finalizado'?`<button data-a=des data-id=${m.id}>Designar</button>`:''}</div></article>`}
+function bracketMatch(m){const w=m.pareja_ganadora_id,done=m.estado=='finalizado',live=m.estado=='en_progreso',status=done?'FINALIZADO':live?'EN JUEGO':m.pareja_a_id&&m.pareja_b_id?'POR JUGAR':'ESPERANDO CLASIFICADOS';
+ const side=id=>{const win=id&&id==w,lose=id&&w&&id!=w,elo=id&&P[id]?Math.round(Number(P[id].elo_promedio_pareja)):0;
+  return `<div class="bracket-team ${win?'winner':''} ${lose?'loser':''}">${pairAv(id,'s')}<span>${esc(id?pn(id):'Por definir')}</span>${elo?`<em class=bt-elo title="Puntaje promedio de la pareja">${elo}</em>`:''}${win?'<b>♛</b>':''}</div>`};
+ return `<article class="bracket-match ${done?'is-done':''} ${live?'is-live':''}">${side(m.pareja_a_id)}${side(m.pareja_b_id)}${m.resultado_sets?`<div class=bracket-score>${esc(m.resultado_sets)}</div>`:''}<div class="bracket-status ${live?'live':done?'done':''}">${status}</div></article>`}
 function vFixtureMap(t,ps,ms){
  if(!ms.length)return '';
  if(modeOf(t)!='eliminacion_directa'){
@@ -242,9 +262,12 @@ function vFixtureMap(t,ps,ms){
    return `<details class=fixture-group open><summary>Grupo ${esc(g)} · ${ids.length} parejas · ${games.length} cruces</summary><div class=fixture-pairs>${ids.map((id,i)=>`<div class=fixture-pair>${pairAv(id,'s')}<span>${esc(pnf(id))}</span></div>`).join('')}</div><div class=fixture-games>${games.map(m=>mCard(m,true)).join('')}</div></details>`
   }).join('')}${tournamentTable(t,ps,ms)}</section>`
  }
- const order=['octavos','cuartos','semifinal','final'],rounds=order.filter(f=>ms.some(m=>m.fase==f)),firstCount=Math.max(1,ms.filter(m=>m.fase==rounds[0]).length),final=ms.find(m=>m.fase=='final'),champion=final?.estado=='finalizado'&&final.pareja_ganadora_id?pn(final.pareja_ganadora_id):'Por definir';
- const titles={octavos:'Octavos',cuartos:'Cuartos',semifinal:'Semifinal',final:'Final'};
- return `<section class=fixture-board><div class=bracket-title-row><h3>Fixture · Llave</h3><span>${rounds.length} ${rounds.length==1?'ronda':'rondas'} · ${ms.length} partidos</span></div><p class=bracket-hint>Deslizá hacia los lados para recorrer las rondas. Tocá <b>Anotar</b> para cargar el resultado.</p><div class=bracket-scroll><div class=bracket-grid style="--bracket-height:${firstCount*150}px">${rounds.map((f,ri)=>`<section class=bracket-round><h4>${titles[f]}</h4><div class=bracket-round-matches>${ms.filter(m=>m.fase==f).sort((a,b)=>(a.numero||0)-(b.numero||0)).map(m=>bracketMatch(m)).join('')}</div></section>`).join('')}</div></div>${final?`<div class=bracket-champion><span>CAMPEONES DEL TORNEO</span><strong>${esc(champion)}</strong><small>Ganador de la final</small></div>`:''}${tournamentTable(t,ps,ms)}</section>`
+ const order=['octavos','cuartos','semifinal','final'],rounds=order.filter(f=>ms.some(m=>m.fase==f)),byR=f=>ms.filter(m=>m.fase==f).sort((a,b)=>(a.numero||0)-(b.numero||0)),isDone=f=>byR(f).every(m=>m.estado=='finalizado'),final=ms.find(m=>m.fase=='final'),champion=final?.estado=='finalizado'&&final.pareja_ganadora_id?pn(final.pareja_ganadora_id):'Por definir';
+ const cur=rounds.find(f=>!isDone(f))||rounds[rounds.length-1],shown=hideDone?rounds.filter(f=>!isDone(f)||f==cur):rounds,canHide=rounds.some(isDone)&&rounds.some(f=>!isDone(f)),firstCount=Math.max(1,byR(shown[0]).length);
+ const titles={octavos:'Octavos',cuartos:'Cuartos',semifinal:'Semifinal',final:'Final'},sl=m=>`<div class=bm-slot>${bracketMatch(m)}</div>`;
+ const col=(f,ri)=>{const arr=byR(f),last=ri==shown.length-1,body=last?arr.map(sl).join(''):arr.reduce((a,m,i)=>(i%2?a[a.length-1].push(m):a.push([m]),a),[]).map(g=>`<div class=bracket-pair>${g.map(sl).join('')}</div>`).join('');
+  return `<section class="bracket-round ${ri==0?'is-first':''} ${last?'is-last':''} ${f==cur?'current':''} ${isDone(f)?'round-done':''}"><h4>${titles[f]}${isDone(f)?' ✓':''}</h4><div class=bracket-round-matches>${body}</div></section>`};
+ return `<section class=fixture-board><div class=bracket-title-row><h3>Fixture · Llave</h3><span>${rounds.length} ${rounds.length==1?'ronda':'rondas'} · ${ms.length} partidos</span></div><p class=bracket-hint>Deslizá hacia los lados para recorrer las rondas. Para anotar un partido, andá a la pestaña <b>Partidos</b>.</p>${canHide?`<button class=bracket-toggle data-a=toggleDone>${hideDone?'Mostrar todas las rondas':'Ocultar rondas terminadas'}</button>`:''}<div class=bracket-scroll><div class=bracket-grid style="--bracket-height:${firstCount*140}px">${shown.map(col).join('')}</div></div>${final?`<div class=bracket-champion><span>CAMPEONES DEL TORNEO</span><strong>${esc(champion)}</strong><small>Ganador de la final</small></div>`:''}${tournamentTable(t,ps,ms)}</section>`
 }
 function vPartidos(){const l=Object.values(M).filter(canScore).sort((a,b)=>(a.numero||0)-(b.numero||0)),groups=[['en_progreso','EN JUEGO'],['pendiente','PRÓXIMOS'],['finalizado','FINALIZADOS']],org=Object.values(T).some(t=>t.organizador_id==me.id),intro=org?'Partidos de los torneos que organizás':'Tus cruces y partidos que tenés asignados';
  return `<h2 class=matches-heading>Mis partidos</h2><p class=matches-intro>${intro}</p>${l.length?groups.map(([state,label])=>{const rows=l.filter(m=>m.estado==state);return rows.length?`<section aria-label="${label}"><div class=match-group-title>${label}<span class=match-group-count>${rows.length}</span></div>${rows.map(m=>mCard(m)).join('')}</section>`:''}).join(''):'<div class=matches-empty>Todavía no tenés partidos para mostrar. Cuando te inscribas a un torneo o te asignen un partido, aparecerá acá.</div>'}`}
@@ -422,6 +445,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]')
  else if(a=='cancelRecovery'){recovery=false;msg='';history.replaceState(null,'',location.pathname+location.search);await sb.auth.signOut();me=null}
  else if(a=='out'){await removePushSubscription(true);await sb.auth.signOut();me=null;notifOpen=false;pushEnabled=false;pushStatusUser=null}
  else if(a=='closeNotif'){notifOpen=false}
+ else if(a=='toggleDone'){hideDone=!hideDone;delete bracketX[sel]}
  else if(a=='enablePush'){await enablePush()}
  else if(a=='tab'){tab=d.v;sel=null}
  else if(a=='open'){sel=d.id}
@@ -478,5 +502,8 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]')
 
 sb.auth.onAuthStateChange((ev)=>{if(ev=='PASSWORD_RECOVERY'){recovery=true;render()}if(ev=='SIGNED_OUT'){me=null;render()}});
 if(/error_code=otp_expired|error=access_denied/.test(location.hash)){msg='El link venció o ya fue usado. Pedí uno nuevo con "¿Olvidaste tu contraseña?".';history.replaceState(null,'',location.pathname+location.search)}
+document.addEventListener('scroll',e=>{const t=e.target;if(t&&t.classList&&t.classList.contains('bracket-scroll'))bracketX[sel]=t.scrollLeft},true);
+const posBracket=()=>{const sc=document.querySelector('.bracket-scroll');if(!sc)return;const x=bracketX[sel];if(x!=null){sc.scrollLeft=x;return}const r=sc.querySelector('.bracket-round.current');if(r)sc.scrollLeft=Math.max(0,r.getBoundingClientRect().left-sc.getBoundingClientRect().left+sc.scrollLeft-4)};
+{const _r=render;render=function(){_r.apply(this,arguments);posBracket()}}
 load().then(render);
 </script></body></html>
