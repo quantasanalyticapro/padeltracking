@@ -270,7 +270,7 @@ function vFixtureMap(t,ps,ms){
  if(modeOf(t)!='eliminacion_directa'){
   const grupos=[...new Set(ms.map(m=>m.grupo||'A'))].sort();
   return `<section class=fixture-board><h3>Mapa de cruces</h3><p class=mut>Todos pueden consultar los partidos. Tocá un cruce para anotar si te corresponde.</p>${grupos.map(g=>{
-   const games=ms.filter(m=>(m.grupo||'A')==g).sort((a,b)=>(a.numero||0)-(b.numero||0));
+   const games=ms.filter(m=>(m.grupo||'A')==g).sort((a,b)=>((a.orden_juego||9999)-(b.orden_juego||9999))||((a.numero||0)-(b.numero||0)));
    const ids=[...new Set(games.flatMap(m=>[m.pareja_a_id,m.pareja_b_id]).filter(Boolean))];
    return `<details class=fixture-group open><summary>Grupo ${esc(g)} · ${ids.length} parejas · ${games.length} cruces</summary><div class=fixture-pairs>${ids.map((id,i)=>`<div class=fixture-pair>${pairAv(id,'s')}<span>${esc(pnf(id))}</span></div>`).join('')}</div><div class=fixture-games>${games.map(m=>mCard(m,true)).join('')}</div></details>`
   }).join('')}${tournamentTable(t,ps,ms)}</section>`
@@ -282,7 +282,7 @@ function vFixtureMap(t,ps,ms){
   return `<section class="bracket-round ${ri==0?'is-first':''} ${last?'is-last':''} ${f==cur?'current':''} ${isDone(f)?'round-done':''}"><h4>${titles[f]}${isDone(f)?' ✓':''}</h4><div class=bracket-round-matches>${body}</div></section>`};
  return `<section class=fixture-board><div class=bracket-title-row><h3>Fixture · Llave</h3><span>${rounds.length} ${rounds.length==1?'ronda':'rondas'} · ${ms.length} partidos</span></div><p class=bracket-hint>Deslizá hacia los lados para recorrer las rondas. Para anotar un partido, andá a la pestaña <b>Partidos</b>.</p>${canHide?`<button class=bracket-toggle data-a=toggleDone>${hideDone?'Mostrar todas las rondas':'Ocultar rondas terminadas'}</button>`:''}<div class=bracket-scroll><div class=bracket-grid style="--bracket-height:${firstCount*140}px">${shown.map(col).join('')}</div></div>${final?`<div class=bracket-champion><span>CAMPEONES DEL TORNEO</span><strong>${esc(champion)}</strong><small>Ganador de la final</small></div>`:''}${tournamentTable(t,ps,ms)}</section>`
 }
-function vPartidos(){const l=Object.values(M).filter(canScore).sort((a,b)=>(a.numero||0)-(b.numero||0)),groups=[['en_progreso','EN JUEGO'],['pendiente','PRÓXIMOS'],['finalizado','FINALIZADOS']],org=Object.values(T).some(t=>t.organizador_id==me.id),intro=org?'Partidos de los torneos que organizás':'Tus cruces y partidos que tenés asignados';
+function vPartidos(){const l=Object.values(M).filter(canScore).sort((a,b)=>((a.orden_juego||9999)-(b.orden_juego||9999))||((a.numero||0)-(b.numero||0))),groups=[['en_progreso','EN JUEGO'],['pendiente','PRÓXIMOS'],['finalizado','FINALIZADOS']],org=Object.values(T).some(t=>t.organizador_id==me.id),intro=org?'Partidos de los torneos que organizás':'Tus cruces y partidos que tenés asignados';
  return `<h2 class=matches-heading>Mis partidos</h2><p class=matches-intro>${intro}</p>${l.length?groups.map(([state,label])=>{const rows=l.filter(m=>m.estado==state);return rows.length?`<section aria-label="${label}"><div class=match-group-title>${label}<span class=match-group-count>${rows.length}</span></div>${rows.map(m=>mCard(m)).join('')}</section>`:''}).join(''):'<div class=matches-empty>Todavía no tenés partidos para mostrar. Cuando te inscribas a un torneo o te asignen un partido, aparecerá acá.</div>'}`}
 
 
