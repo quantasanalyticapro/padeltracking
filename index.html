@@ -369,10 +369,16 @@ function prepareServiceWorker(){
  swPromise=navigator.serviceWorker.register(new URL('./sw.js',document.baseURI),{scope:new URL('./',document.baseURI).pathname}).catch(e=>{console.warn('No se pudo registrar el servicio de avisos:',e);return null});
  return swPromise;
 }
+const pushOff=()=>{try{return localStorage.getItem('padel_push_off')=='1'}catch(e){return false}},setPushOff=v=>{try{v?localStorage.setItem('padel_push_off','1'):localStorage.removeItem('padel_push_off')}catch(e){}};
 async function syncPushStatus(){
  const userId=me?.id;if(!userId||pushStatusUser==userId||pushStatusLoading)return;
  pushStatusLoading=true;pushStatusUser=userId;
- try{const reg=await prepareServiceWorker(),sub=await reg?.pushManager?.getSubscription();pushEnabled=!!sub}
+ try{const reg=await prepareServiceWorker();let sub=await reg?.pushManager?.getSubscription();
+  if(reg&&'Notification' in window&&Notification.permission==='granted'&&!PUSH_VAPID_PUBLIC_KEY.startsWith('PEGAR_')&&!pushOff()){
+   try{sub=sub||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapidBytes(PUSH_VAPID_PUBLIC_KEY)});
+    await sb.from('push_subscriptions').upsert({user_id:userId,endpoint:sub.endpoint,subscription:sub.toJSON()},{onConflict:'endpoint'})}
+   catch(e){console.warn('No se pudieron reactivar los avisos automáticamente:',e)}}
+  pushEnabled=!!sub}
  catch(e){console.warn('No se pudo consultar el estado de avisos:',e);pushEnabled=false}
  finally{pushStatusLoading=false;if(me?.id==userId)render()}
 }
@@ -391,7 +397,7 @@ async function enablePush(){
  const sub=await reg.pushManager.getSubscription()||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:vapidBytes(PUSH_VAPID_PUBLIC_KEY)});
  const r=await sb.from('push_subscriptions').upsert({user_id:me.id,endpoint:sub.endpoint,subscription:sub.toJSON()},{onConflict:'endpoint'});
  if(r.error)throw r.error;
- alert('Listo. Este dispositivo recibirá avisos de solicitudes y designaciones.');notifOpen=false;pushEnabled=true;pushStatusUser=me.id;
+ setPushOff(false);alert('Listo. Este dispositivo recibirá avisos de solicitudes y designaciones.');notifOpen=false;pushEnabled=true;pushStatusUser=me.id;
 }
 /* ---------- Acciones ---------- */
 const err=r=>{if(r.error){alert(r.error.message);return true}};
@@ -461,7 +467,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]')
  if(a=='pickNewCover'){$('#newTournamentCoverInput')?.click();return}
  if(a=='toggleNewT'){newTournamentOpen=!newTournamentOpen;render();return}
  if(a=='notifications'){notifOpen=true;render();return}
- if(a=='togglePush'){if(pushToggleBusy)return;pushToggleBusy=true;render();try{if(pushEnabled)await removePushSubscription();else await enablePush();pushStatusUser=null;await syncPushStatus()}catch(x){alert('No se pudo actualizar el aviso: '+(x.message||x))}finally{pushToggleBusy=false;render()}return}
+ if(a=='togglePush'){if(pushToggleBusy)return;pushToggleBusy=true;render();try{if(pushEnabled){await removePushSubscription();setPushOff(true)}else{await enablePush();if(pushEnabled)setPushOff(false)}pushStatusUser=null;await syncPushStatus()}catch(x){alert('No se pudo actualizar el aviso: '+(x.message||x))}finally{pushToggleBusy=false;render()}return}
  try{
  if(a=='login'){const r=await sb.auth.signInWithPassword({email:$('#em').value.trim(),password:$('#pw').value});if(err(r))return;await load()}
  else if(a=='signup'){const r=await sb.auth.signUp({email:$('#em').value.trim(),password:$('#pw').value,options:{data:{nombre:$('#nm').value.trim()}}});
