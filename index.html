@@ -122,7 +122,7 @@ let K=KEY||localStorage.getItem('sbk')||'';
 if(!K){K=(prompt('Pegá la clave publicable de Supabase (Settings > API Keys)')||'').trim();localStorage.setItem('sbk',K)}
 const sb=supabase.createClient(URL_,K),$=s=>document.querySelector(s),A=$('#app');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let recovery=/type=recovery/.test(location.hash),loginEmail='',hideDone=false,bracketX={},D={},me=null,J={},T={},P={},M={},Q={},tab='partidos',sel=null,score=null,pick=null,assignMatchId=null,assignQuery='',scoringTeam='A',msg='',ed=null,previewRows=null,notifOpen=false,newTournamentOpen=false,newTournamentCover=null,newTournamentCoverData='',coverTargetId=null,pushEnabled=false,pushStatusUser=null,pushStatusLoading=false,pushToggleBusy=false;
+let recovery=/type=recovery/.test(location.hash),loginEmail='',hideDone=false,bracketX={},D={},DOK=false,scoreBusy=false,editDatos=false,me=null,J={},T={},P={},M={},Q={},tab='partidos',sel=null,score=null,pick=null,assignMatchId=null,assignQuery='',scoringTeam='A',msg='',ed=null,previewRows=null,notifOpen=false,newTournamentOpen=false,newTournamentCover=null,newTournamentCoverData='',coverTargetId=null,pushEnabled=false,pushStatusUser=null,pushStatusLoading=false,pushToggleBusy=false;
 
 /* ---------- Motor de puntuación configurable ----------
    cfg: sets (1|3) · juegos (4|6) · tb (0|7|10 al empatar juegos) · stb (0|7|10 3.er set) · oro (punto de oro) */
@@ -185,7 +185,7 @@ const canScore=m=>isOrg(m)||isPl(m)||(m.anotador_id==me.id&&(!('anotador_estado'
 async function load(){
  const r=await Promise.all(['jugadores','torneos','parejas_inscritas','partidos_fixture','propuestas_pareja','jugadores_datos'].map(n=>sb.from(n).select('*').order('creado_at')));
  const mp=d=>Object.fromEntries((d||[]).map(x=>[x.id,x]));
- J=mp(r[0].data);T=mp(r[1].data);P=mp(r[2].data);M=mp(r[3].data);Q=mp(r[4].data);D=Object.fromEntries((r[5].data||[]).map(x=>[x.jugador_id,x]));
+ J=mp(r[0].data);T=mp(r[1].data);P=mp(r[2].data);M=mp(r[3].data);Q=mp(r[4].data);DOK=!r[5].error;D=Object.fromEntries((r[5].data||[]).map(x=>[x.jugador_id,x]));
  const {data:{user}}=await sb.auth.getUser();me=user?J[user.id]:null}
 
 /* ---------- Vistas ---------- */
@@ -206,6 +206,12 @@ function vParejasAdmin(t,ps){
 function vEd(){const T_=ed.k=='T',o=T_?T[ed.id]:M[ed.id],c=cfgOf(T_?{torneo_id:ed.id}:o),hasFixture=T_&&Object.values(M).some(m=>m.torneo_id==o.id);
  return `<div class=sheet><div style="max-height:92vh;overflow:auto"><h3>${T_?'Fecha y formato del torneo':'Formato de este partido'}</h3>${T_?`<label class=mut>Cómo quieren jugar</label><select id=efm ${hasFixture?'disabled':''}>${[['todos_contra_todos','Todos contra todos'],['todos_contra_todos_final','Todos contra todos + final entre los dos primeros'],['eliminacion_directa','Eliminación directa con semifinales y final'],...(modeOf(o)=='grupos'?[['grupos','Fase de grupos']]:[])].map(([v,l])=>`<option value="${v}" ${modeOf(o)==v?'selected':''}>${l}</option>`).join('')}</select>${hasFixture?'<p class=mut>El formato queda fijo una vez generado el fixture.</p>':''}<label class=mut>Fecha de inicio</label><input id=fdt type=date value="${o.fecha_inicio||''}">${venueFields(o)}`:''}${fmtFields(c)}
  <button class="p w" data-a=saveEd>Guardar</button>${!T_&&o.config?'<button class=w data-a=resetEd>Usar el formato del torneo</button>':''}<button class=w data-a=closeEd>Cancelar</button></div></div>`}
+const needsData=()=>DOK&&me&&!(D[me.id]&&D[me.id].fecha_nacimiento&&!D[me.id].provisoria&&D[me.id].genero);
+function vDatos(){const d=D[me.id]||{},forced=needsData();return `<div class=brand><div class=santa>SANTA</div><div class=sub>Padel Club</div><div class=sub2>${forced?'Completá tus datos para continuar':'Mis datos'}</div></div><div class=c>
+<p class=mut>Los usamos para armar las categorías (edad y género). Solo los ven vos y los organizadores.</p>
+<label class=mut>Fecha de nacimiento</label><input id=dnac type=date min=1925-01-01 max=2015-12-31 value="${d.provisoria?'':esc(d.fecha_nacimiento||'')}">
+<label class=mut>Género</label><select id=dgen><option value="">Elegí…</option><option value=M ${d.genero=='M'?'selected':''}>Masculino</option><option value=F ${d.genero=='F'?'selected':''}>Femenino</option></select>
+<button class="p w" data-a=saveDatos>Guardar</button>${forced?'<button class=w data-a=out>Salir</button>':'<button class=w data-a=cancelDatos>Cancelar</button>'}<p class=mut>${esc(msg)}</p></div>`}
 function vRecovery(){return `<div class=brand><div class=santa>SANTA</div><div class=sub>Padel Club</div><div class=sub2>Elegí tu nueva contraseña</div></div><div class=c>
 <input id=np1 type=password placeholder="Nueva contraseña (6+ caracteres)" autocomplete="new-password">
 <input id=np2 type=password placeholder="Repetí la nueva contraseña" autocomplete="new-password">
@@ -334,7 +340,7 @@ function currentServer(m,s){const c=serveConfig(m);if(!c.first||!c.a||!c.b)retur
 function vScore(){const m=M[score.id],t=T[m.torneo_id],c=cfgOf(m),s=calc(score.evs,c),on=m.estado=='en_progreso',fin=s.w!=null,mode=gm(c),setup=serveConfig(m),serving=on?currentServer(m,s):null,deuce=s.p[0]>=3&&s.p[1]>=3,pairA=pn(m.pareja_a_id),pairB=pn(m.pareja_b_id),currentSet=Math.min(s.sets.length+1,c.sets),side=scoringTeam||serving?.team||'A',sideOther=side=='A'?'B':'A',configured=!!(setup.first&&setup.a&&setup.b),canUndo=canUndoScore(score);
  const modeBadge=s.gold&&mode=='estrella'?'<div class="scoring-rule-badge star"><small>PRÓXIMO PUNTO</small><strong>START POINT</strong></div>':mode=='estrella'&&deuce&&!s.tb&&!s.stb?`<div class="scoring-rule-badge star"><small>40–40 · PUNTO ESTRELLA</small><strong>${Math.max(0,s.dz-1)} / 2 ventajas</strong></div>`:(s.dec&&deuce||mode=='oro'&&s.p[0]==3&&s.p[1]==3&&!s.tb&&!s.stb)?'<div class="scoring-rule-badge"><small>PRÓXIMO PUNTO</small><strong>PUNTO DE ORO</strong></div>':mode=='ventaja'&&deuce&&!s.tb&&!s.stb?'<div class="scoring-rule-badge classic"><strong>VENTAJA CLÁSICA</strong></div>':'';
  const faces=(pairId,serverId)=>`<div class=scoring-avatars>${pl(pairId).slice(0,2).map(j=>`<span class="scoring-avatar ${j==serverId?'is-server':''}">${av(j,'s')}${j==serverId?'<i class=avatar-serve>SACA</i>':''}</span>`).join('')}</div>`;
- const canScore=on&&!fin&&!!serving,needsSetup=m.estado=='pendiente'||!configured,serveSetup=needsSetup?`<section class=serve-setup><h3>Orden de saque</h3><div class=serve-first><span>¿Qué pareja saca primero?</span><button class="${setup.first=='A'?'selected':''}" data-a=serve data-e=first data-v=A>${esc(pairA)}</button><button class="${setup.first=='B'?'selected':''}" data-a=serve data-e=first data-v=B>${esc(pairB)}</button></div>${[['A',m.pareja_a_id,setup.a,pairA],['B',m.pareja_b_id,setup.b,pairB]].map(([eq,pid,selected,label])=>`<div class=serve-player-row><span>Primer sacador · ${esc(label)}</span>${pl(pid).map(j=>`<button class="${selected==j?'selected':''}" data-a=serve data-e=${eq} data-j="${esc(j)}">${esc(nm(j))}</button>`).join('')}</div>`).join('')}</section>`:'';
+ const canScore=on&&!fin&&!!serving&&!scoreBusy,needsSetup=m.estado=='pendiente'||!configured,serveSetup=needsSetup?`<section class=serve-setup><h3>Orden de saque</h3><div class=serve-first><span>¿Qué pareja saca primero?</span><button class="${setup.first=='A'?'selected':''}" data-a=serve data-e=first data-v=A>${esc(pairA)}</button><button class="${setup.first=='B'?'selected':''}" data-a=serve data-e=first data-v=B>${esc(pairB)}</button></div>${[['A',m.pareja_a_id,setup.a,pairA],['B',m.pareja_b_id,setup.b,pairB]].map(([eq,pid,selected,label])=>`<div class=serve-player-row><span>Primer sacador · ${esc(label)}</span>${pl(pid).map(j=>`<button class="${selected==j?'selected':''}" data-a=serve data-e=${eq} data-j="${esc(j)}">${esc(nm(j))}</button>`).join('')}</div>`).join('')}</section>`:'';
  let sheet='';
  if(pick){const pickSide=pick.t=='winner'?pick.e:(pick.e=='A'?'B':'A'),ids=pl(pickSide=='A'?m.pareja_a_id:m.pareja_b_id);
   const winnerPick=pick.t=='winner';
@@ -351,6 +357,7 @@ function vScore(){const m=M[score.id],t=T[m.torneo_id],c=cfgOf(m),s=calc(score.e
 
 function render(){
  if(recovery){document.body.classList.remove('app-screen','tournaments-screen','matches-screen','ranking-screen');A.innerHTML=vRecovery();return}
+ if(me&&(editDatos||needsData())){document.body.classList.remove('app-screen','tournaments-screen','matches-screen','ranking-screen');A.innerHTML=vDatos();return}
  document.body.classList.toggle('app-screen',!!me);document.body.classList.toggle('tournaments-screen',!!me&&!score&&tab=='torneos');document.body.classList.toggle('matches-screen',!!me&&!score&&tab=='partidos');document.body.classList.toggle('ranking-screen',!!me&&!score&&tab=='rank');
  if(!me){if(liveChannel){sb.removeChannel(liveChannel);liveChannel=null;liveUser=null}A.innerHTML=vLogin();return}
  startLiveUpdates();prepareServiceWorker();syncPushStatus();
@@ -412,9 +419,9 @@ async function openScore(id){const r=await sb.from('estadisticas_eventos').selec
  const evs=r.data||[],m=M[id],c=cfgOf(m),state=m.estado_marcador&&typeof m.estado_marcador=='object'?m.estado_marcador:{},checkpoint=undoCheckpointInfo(evs,c,state);let undoReady=true;
  if(checkpoint.needsSave){const next={...state,undo_checkpoint_event_id:checkpoint.id},save=await sb.from('partidos_fixture').update({estado_marcador:next}).eq('id',id);if(save.error){console.warn('No se pudo guardar el límite de deshacer:',save.error);undoReady=false;alert('No pude guardar el límite de deshacer. El botón quedará desactivado por seguridad.')}else m.estado_marcador=next}
  score={id,evs,undoCheckpointId:checkpoint.id,undoReady};const s=calc(evs,c),serving=currentServer(m,s);scoringTeam=serving?.team||'A'}
-const edadDe=id=>{const d=D[id];return d&&d.anio_nacimiento?new Date().getFullYear()-d.anio_nacimiento:null};
-const avisosPareja=(t,p)=>{const out=[];[p.jugador_1_id,p.jugador_2_id].filter(Boolean).forEach(id=>{const e=edadDe(id),g=D[id]?.genero,n=nm(id);
-  if(t.edad_min||t.edad_max){if(e==null)out.push(n+': sin dato de edad');else{if(t.edad_min&&e<t.edad_min)out.push(`${n}: ${e} años (mínimo ${t.edad_min})`);if(t.edad_max&&e>t.edad_max)out.push(`${n}: ${e} años (máximo ${t.edad_max})`)}}
+const edadDe=(id,t)=>{const f=D[id]?.fecha_nacimiento;if(!f)return null;const r=t?.fecha_inicio?new Date(t.fecha_inicio+'T12:00:00'):new Date(),n=new Date(f+'T12:00:00');let e=r.getFullYear()-n.getFullYear();if(r.getMonth()<n.getMonth()||(r.getMonth()==n.getMonth()&&r.getDate()<n.getDate()))e--;return e};
+const avisosPareja=(t,p)=>{const out=[];[p.jugador_1_id,p.jugador_2_id].filter(Boolean).forEach(id=>{const e=edadDe(id,t),pv=D[id]?.provisoria?' (fecha provisoria)':'',g=D[id]?.genero,n=nm(id);
+  if(t.edad_min||t.edad_max){if(e==null)out.push(n+': sin dato de edad');else{if(t.edad_min&&e<t.edad_min)out.push(`${n}: ${e} años${pv} (mínimo ${t.edad_min})`);if(t.edad_max&&e>t.edad_max)out.push(`${n}: ${e} años${pv} (máximo ${t.edad_max})`)}}
   if(t.tipo=='masculino'||t.tipo=='femenino'){const need=t.tipo=='masculino'?'M':'F';if(!g)out.push(n+': sin dato de género');else if(g!=need)out.push(`${n}: no coincide con torneo ${t.tipo}`)}});
  if(t.tipo=='mixto'&&p.jugador_2_id){const a=D[p.jugador_1_id]?.genero,b=D[p.jugador_2_id]?.genero;if(!a||!b)out.push('Mixto: falta el género de algún jugador');else if(a==b)out.push('Mixto: la pareja debería ser un hombre y una mujer')}
  return out};
@@ -534,12 +541,11 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]')
  else if(a=='closeEd'){ed=null}
  else if(a=='resetEd'){const r=await sb.from('partidos_fixture').update({config:null}).eq('id',ed.id);if(err(r))return;ed=null;await load()}
  else if(a=='saveEd'){const r=ed.k=='T'?await sb.from('torneos').update({formato:$('#efm').value=='eliminacion_directa'?'eliminacion_directa':'grupos',config:{...readFmt(),modalidad:$('#efm').value},fecha_inicio:$('#fdt').value||null,...readVenue()}).eq('id',ed.id):await sb.from('partidos_fixture').update({config:readFmt()}).eq('id',ed.id);if(err(r))return;ed=null;await load()}
- else if(a=='datos'){const cur=D[me.id]||{};
-  const y=prompt('Año de nacimiento (por ejemplo 1975). Solo lo ven los organizadores. Dejalo vacío para no informarlo:',cur.anio_nacimiento||'');if(y===null)return;
-  let anio=null;if(y.trim()){anio=parseInt(y);if(!(anio>=1925&&anio<=2015)){alert('Escribí un año válido de 4 cifras, por ejemplo 1975.');return}}
-  const g=prompt('Género, para torneos femeninos o mixtos: escribí M o F. Dejalo vacío para no informarlo:',cur.genero||'');if(g===null)return;
-  const gg=g.trim().toUpperCase();if(gg&&gg!='M'&&gg!='F'){alert('Escribí M o F.');return}
-  const r=await sb.from('jugadores_datos').upsert({jugador_id:me.id,anio_nacimiento:anio,genero:gg||null},{onConflict:'jugador_id'});if(err(r))return;await load()}
+ else if(a=='datos'){editDatos=true;msg=''}
+ else if(a=='cancelDatos'){editDatos=false;msg=''}
+ else if(a=='saveDatos'){const f=$('#dnac').value,g=$('#dgen').value;
+  if(!f){msg='Elegí tu fecha de nacimiento.'}else if(f<'1925-01-01'||f>'2015-12-31'){msg='La fecha no es válida.'}else if(!g){msg='Elegí tu género.'}
+  else{const r=await sb.from('jugadores_datos').upsert({jugador_id:me.id,fecha_nacimiento:f,genero:g,provisoria:false},{onConflict:'jugador_id'});if(err(r))return;editDatos=false;msg='';await load()}}
  else if(a=='apr'||a=='rpz'){if(a=='rpz'&&!confirm('¿Rechazar esta inscripción? Se elimina y se avisa a los jugadores.'))return;
   const r=await sb.rpc('resolver_inscripcion',{p_pareja:d.id,p_aprobar:a=='apr'});if(err(r))return;await load()}
  else if(a=='nombre'){const v=prompt('Tu nombre y apellido (así se verá en los partidos):',me.nombre);if(v===null)return;
@@ -556,10 +562,10 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-a]')
  else if(a=='start'){const setup=serveConfig(M[score.id]);if(!setup.first||!setup.a||!setup.b){alert('Antes de comenzar, elegí qué equipo saca primero y el primer sacador de cada equipo.');return}const r=await sb.from('partidos_fixture').update({estado:'en_progreso'}).eq('id',score.id);if(err(r))return;await load();await openScore(score.id)}
  else if(a=='pick'){pick={t:d.t,e:d.e}}
  else if(a=='cancel'){pick=null}
- else if(a=='add'){pick=null;const c=cfgOf(M[score.id]),s=calc(score.evs,c);if(s.w!=null)return;
-  const n=calc(score.evs.concat([{equipo_que_suma:d.e}]),c),
-  r=await sb.from('estadisticas_eventos').insert({partido_id:score.id,tipo_evento:d.t,jugador_id:d.j||null,equipo_que_suma:d.e,marcador_momento:txt(n,c)});if(err(r))return;await openScore(score.id)}
- else if(a=='undo'){if(!canUndoScore(score)){alert('Deshacer está limitado a los puntos del juego actual.');return}const l=score.evs[score.evs.length-1];const r=await sb.from('estadisticas_eventos').delete().eq('id',l.id);if(err(r))return;await openScore(score.id)}
+ else if(a=='add'){if(scoreBusy)return;pick=null;const c=cfgOf(M[score.id]),s=calc(score.evs,c);if(s.w!=null)return;
+  scoreBusy=true;render();
+  try{const n=calc(score.evs.concat([{equipo_que_suma:d.e}]),c),r=await sb.from('estadisticas_eventos').insert({partido_id:score.id,tipo_evento:d.t,jugador_id:d.j||null,equipo_que_suma:d.e,marcador_momento:txt(n,c)});if(err(r))return;await openScore(score.id)}finally{scoreBusy=false;render()}}
+ else if(a=='undo'){if(scoreBusy)return;if(!canUndoScore(score)){alert('Deshacer está limitado a los puntos del juego actual.');return}const l=score.evs[score.evs.length-1];scoreBusy=true;render();try{const r=await sb.from('estadisticas_eventos').delete().eq('id',l.id);if(err(r))return;await openScore(score.id)}finally{scoreBusy=false;render()}}
  else if(a=='close'){const m=M[score.id],s=calc(score.evs,cfgOf(m));
   const r=await sb.from('partidos_fixture').update({estado:'finalizado',resultado_sets:sets_(s),pareja_ganadora_id:s.w==0?m.pareja_a_id:m.pareja_b_id}).eq('id',m.id);
   if(err(r))return;score=null;await load()}
